@@ -117,6 +117,8 @@ pub const intro_letter = Document.fromText(
     \\needing your help
     \\for some time
     \\afterwords.
+    \\
+    \\ - Sunshine
 );
 
 pub const love_letter = Document.fromText(

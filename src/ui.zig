@@ -54,7 +54,7 @@ pub const UI = union(enum) {
     /// Draws text to the screen. Pass a pointer to the text to be rendered.
     Label: []const u8,
     /// Draws a Document to the screen
-    Document: struct { doc: *const Document, mini: bool },
+    Document: struct { doc: *const Document, mini: bool, desk_pos: g.Vec2 },
     /// Draws an image to the screen. Assumes there is another array containing image info
     Image: *draw.Blit,
     /// Button

@@ -14,7 +14,7 @@ allocator: std.mem.Allocator,
 ctx: ui.Context,
 desk: usize,
 
-var grabbed: ?struct { handle: usize, diff: geom.Vec2} = null;
+var grabbed: ?struct { handle: usize, diff: geom.Vec2 } = null;
 fn handle_grab(ctx: *ui.Context, node: Node, event: zow4.ui.EventData) ?Node {
     const tag: []const u8 = @tagName(node.layout);
     if (verbose) w4.trace(tag.ptr);
@@ -39,14 +39,25 @@ fn handle_minify(ctx: *ui.Context, node: Node, event: zow4.ui.EventData) ?Node {
     if (node.data) |data| {
         if (data == .Document) {
             var new_node = node;
-            new_node.data.?.Document.mini = !data.Document.mini;
+            const is_mini = !data.Document.mini;
+            new_node.data.?.Document.mini = is_mini;
             if (ctx.get_ancestor(node.handle, 1)) |ancestor| {
                 std.debug.assert(ancestor.layout == .Anchor);
                 var ancestor_update = ancestor;
-                const pos = geom.rect.top_left(ancestor.layout.Anchor.margin);
-                const size = new_node.data.?.size() + geom.Vec2{4, 4};
+                const old_pos = geom.rect.top_left(ancestor.layout.Anchor.margin);
+                // const old_size = geom.rect.size(ancestor.layout.Anchor.margin);
+                const size = new_node.data.?.size() + geom.Vec2{ 4, 4 };
+                const pos = pos: {
+                    if (is_mini) {
+                        break :pos data.Document.desk_pos;
+                    } else {
+                        new_node.data.?.Document.desk_pos = old_pos;
+                        break :pos (geom.Vec2{ 80 - @divTrunc(size[0], 2), 8 });
+                    }
+                };
                 ancestor_update.layout.Anchor.margin = .{ pos[0], pos[1], pos[0] + size[0], pos[1] + size[1] };
                 _ = ctx.set_node(ancestor_update);
+                ctx.bring_to_front(ancestor.handle);
             }
             return new_node;
         }
@@ -59,7 +70,8 @@ pub fn create_doc(this: *@This(), doc: *const document.Document) !usize {
     const size = geom.Vec2{ doc.cols + pad * 2, doc.lines + pad * 2 };
     // Listen for events on this floating node, since it controls positioning.
     // This node uses the default of
-    const floatnode = Node.anchor(.{ 0, 0, 0, 0 }, .{ 0, 0, size[0], size[1] });
+    const pos = (geom.Vec2{ 80, 80 }) - @divTrunc(size, geom.Vec2{ 2, 2 });
+    const floatnode = Node.anchor(.{ 0, 0, 0, 0 }, .{ pos[0], pos[1], pos[0] + size[0], pos[1] + size[1] });
     var float = try this.ctx.insert(this.desk, floatnode);
     try this.ctx.listen(float, .PointerPress, handle_grab);
 
@@ -73,7 +85,7 @@ pub fn create_doc(this: *@This(), doc: *const document.Document) !usize {
 
     const contentnode = Node
         .relative()
-        .dataValue(.{ .Document = .{ .doc = doc, .mini = true } })
+        .dataValue(.{ .Document = .{ .doc = doc, .mini = true, .desk_pos = pos } })
         .capturePointer(true)
         .eventFilter(.Pass);
     const content = try this.ctx.insert(paper, contentnode);
