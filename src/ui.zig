@@ -1,6 +1,7 @@
 const std = @import("std");
 const w4 = @import("wasm4");
 const zow4 = @import("zow4");
+const Document = @import("document.zig").Document;
 const g = zow4.geometry;
 const ui = zow4.ui;
 const draw = zow4.draw;
@@ -52,6 +53,8 @@ pub fn update(ui_ctx: *Context) void {
 pub const UI = union(enum) {
     /// Draws text to the screen. Pass a pointer to the text to be rendered.
     Label: []const u8,
+    /// Draws a Document to the screen
+    Document: struct { doc: *const Document, mini: bool },
     /// Draws an image to the screen. Assumes there is another array containing image info
     Image: *draw.Blit,
     /// Button
@@ -65,6 +68,19 @@ pub const UI = union(enum) {
                     label_size[0],
                     label_size[1],
                 };
+            },
+            .Document => |doc| {
+                if (doc.mini) {
+                    return .{
+                        doc.doc.cols,
+                        doc.doc.lines,
+                    };
+                } else {
+                    return .{
+                        doc.doc.cols * 8,
+                        doc.doc.lines * 8,
+                    };
+                }
             },
             .Image => |blit| {
                 const blit_size = blit.get_size();
@@ -87,6 +103,7 @@ pub const UI = union(enum) {
         if (node.data) |data| {
             switch (data) {
                 .Label => {},
+                .Document => {},
                 .Image => {},
                 .Button => {},
             }
@@ -113,6 +130,15 @@ pub const UI = union(enum) {
                 .Label => |label| {
                     w4.DRAW_COLORS.* = 0x04;
                     w4.textUtf8(label.ptr, label.len, node.bounds[0], node.bounds[1]);
+                },
+                .Document => |doc| {
+                    if (doc.mini) {
+                        w4.DRAW_COLORS.* = 0x04;
+                        doc.doc.draw_mini(g.rect.top_left(node.bounds));
+                    } else {
+                        w4.DRAW_COLORS.* = 0x04;
+                        doc.doc.draw(g.rect.top_left(node.bounds));
+                    }
                 },
                 .Image => |blit| {
                     blit.blit(.{ node.bounds[0], node.bounds[1] });

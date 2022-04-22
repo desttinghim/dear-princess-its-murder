@@ -14,9 +14,9 @@ allocator: std.mem.Allocator,
 ctx: ui.Context,
 desk: usize,
 
-var grabbed: ?struct { handle: usize, diff: geom.Vec2, moved: bool } = null;
-fn handle_grab(node: Node, event: zow4.ui.EventData) ?Node {
-    const tag: []const u8 =  @tagName(node.layout);
+var grabbed: ?struct { handle: usize, diff: geom.Vec2} = null;
+fn handle_grab(ctx: *ui.Context, node: Node, event: zow4.ui.EventData) ?Node {
+    const tag: []const u8 = @tagName(node.layout);
     if (verbose) w4.trace(tag.ptr);
     if (node.layout != .Anchor) return null;
     if (!event.pointer.left) return null;
@@ -26,41 +26,60 @@ fn handle_grab(node: Node, event: zow4.ui.EventData) ?Node {
             grabbed = .{
                 .handle = node.handle,
                 .diff = event.pointer.pos - geom.rect.top_left(anchor.margin),
-                .moved = false,
             };
+            ctx.bring_to_front(node.handle);
         },
         else => {},
     }
     return null;
 }
 
-var minify_node: ?usize = null;
-fn handle_minify(node: Node, event: zow4.ui.EventData) ?Node {
+fn handle_minify(ctx: *ui.Context, node: Node, event: zow4.ui.EventData) ?Node {
     if (!event.pointer.right) return null;
-    minify_node = node.handle;
+    if (node.data) |data| {
+        if (data == .Document) {
+            var new_node = node;
+            new_node.data.?.Document.mini = !data.Document.mini;
+            if (ctx.get_ancestor(node.handle, 1)) |ancestor| {
+                std.debug.assert(ancestor.layout == .Anchor);
+                var ancestor_update = ancestor;
+                const pos = geom.rect.top_left(ancestor.layout.Anchor.margin);
+                const size = new_node.data.?.size() + geom.Vec2{4, 4};
+                ancestor_update.layout.Anchor.margin = .{ pos[0], pos[1], pos[0] + size[0], pos[1] + size[1] };
+                _ = ctx.set_node(ancestor_update);
+            }
+            return new_node;
+        }
+    }
     return null;
 }
 
-pub fn create_doc(this: *@This(), size: geom.Vec2) !usize {
+pub fn create_doc(this: *@This(), doc: *const document.Document) !usize {
     const pad = 2;
+    const size = geom.Vec2{ doc.cols + pad * 2, doc.lines + pad * 2 };
     // Listen for events on this floating node, since it controls positioning.
     // This node uses the default of
-    const floatnode = Node
-        .anchor(.{ 0, 0, 0, 0 }, .{ 0, 0, size[0] + pad * 2, size[1] + pad * 2})
-    ;
+    const floatnode = Node.anchor(.{ 0, 0, 0, 0 }, .{ 0, 0, size[0], size[1] });
     var float = try this.ctx.insert(this.desk, floatnode);
     try this.ctx.listen(float, .PointerPress, handle_grab);
-    try this.ctx.listen(float, .PointerPress, handle_minify);
 
     // Capture events and pass them up
-    const node = Node
-        .anchor(.{0,0,100,100}, .{pad,pad,pad,pad})
+    const papernode = Node
+        .anchor(.{ 0, 0, 100, 100 }, .{ pad, pad, pad, pad })
         .hasBackground(true)
         .capturePointer(true)
-        .eventFilter(.Pass)
-    ;
-    var doc = try this.ctx.insert(float, node);
-    return doc;
+        .eventFilter(.Pass);
+    const paper = try this.ctx.insert(float, papernode);
+
+    const contentnode = Node
+        .relative()
+        .dataValue(.{ .Document = .{ .doc = doc, .mini = true } })
+        .capturePointer(true)
+        .eventFilter(.Pass);
+    const content = try this.ctx.insert(paper, contentnode);
+    try this.ctx.listen(content, .PointerPress, handle_minify);
+
+    return content;
 }
 
 pub fn init(alloc: std.mem.Allocator) !@This() {
@@ -72,11 +91,10 @@ pub fn init(alloc: std.mem.Allocator) !@This() {
     };
     this.desk = try this.ctx.insert(null, Node.relative());
 
-    var doc = try this.create_doc(zow4.text.text_size(document.intro_letter.text));
-    _ = try this.ctx.insert(doc, Node.relative().dataValue(.{ .Label = document.intro_letter.text }).capturePointer(false).eventFilter(.Pass));
-
-    var doc2 = try this.create_doc(zow4.text.text_size(document.love_letter.text));
-    _ = try this.ctx.insert(doc2, Node.relative().dataValue(.{ .Label = document.love_letter.text }));
+    var doc = try this.create_doc(&document.intro_letter);
+    var doc2 = try this.create_doc(&document.love_letter);
+    _ = doc;
+    _ = doc2;
 
     return this;
 }
@@ -88,22 +106,18 @@ fn log(string: []const u8) void {
 pub fn update(this: *@This()) void {
     // if (zow4.input.mousep(.left)) w4.trace("click");
     ui.update(&this.ctx);
-    if (minify_node) |node| {
-        if (!this.ctx.hide_node(node) and verbose) w4.tracef("%d not found", node);
-        minify_node = null;
-    }
     if (grabbed) |*grab| {
         if (this.ctx.get_node(grab.handle)) |*node| {
             const pos = zow4.input.mousepos() - grab.diff;
             const size = geom.rect.size(node.layout.Anchor.margin);
             node.layout.Anchor.margin = geom.Rect{ pos[0], pos[1], pos[0] + size[0], pos[1] + size[1] };
             if (!this.ctx.set_node(node.*)) w4.trace("[UPDATE] Grab - failed to find node");
-            if (!grab.moved) {
-                if (verbose) this.ctx.print_debug(this.allocator, log);
-                this.ctx.bring_to_front(node.handle);
-                grab.moved = true;
-                if (verbose) w4.trace("moved");
-            }
+            // if (!grab.moved) {
+            //     if (verbose) this.ctx.print_debug(this.allocator, log);
+            //     this.ctx.bring_to_front(node.handle);
+            //     grab.moved = true;
+            //     if (verbose) w4.trace("moved");
+            // }
             if (!zow4.input.mouse(.left)) grabbed = null;
         }
     }
