@@ -88,6 +88,18 @@ pub fn text_mini(string: []const u8, pos: geom.Vec2, lines: ?usize) void {
 // Document Data //
 ///////////////////
 
+pub const controls = Document.fromText(
+    \\CONTROLS:
+    \\
+    \\Left click and
+    \\drag to move items
+    \\around.
+    \\
+    \\Right click to
+    \\Expand or minimize
+    \\documents.
+);
+
 pub const intro_letter = Document.fromText(
     \\Sparkles,
     \\

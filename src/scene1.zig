@@ -37,6 +37,10 @@ fn handle_grab(ctx: *ui.Context, node: Node, event: zow4.ui.EventData) ?Node {
 
 fn handle_minify(ctx: *ui.Context, node: Node, event: zow4.ui.EventData) ?Node {
     if (!event.pointer.right) return null;
+    return toggle_minify(ctx, node);
+}
+
+fn toggle_minify(ctx: *ui.Context, node: Node) ?Node {
     if (node.data) |data| {
         if (data == .Document) {
             var new_node = node;
@@ -72,7 +76,7 @@ pub fn create_doc(this: *@This(), doc: *const document.Document) !usize {
     // Listen for events on this floating node, since it controls positioning.
     // This node uses the default of
     const rand = this.rand.intRangeLessThanBiased;
-    const offset = geom.Vec2{rand(i32, -40, 40), rand(i32, -40, 40)};
+    const offset = geom.Vec2{ rand(i32, -40, 40), rand(i32, -40, 40) };
     const pos = (geom.Vec2{ 80, 80 }) - @divTrunc(size, geom.Vec2{ 2, 2 }) + offset;
     const floatnode = Node.anchor(.{ 0, 0, 0, 0 }, .{ pos[0], pos[1], pos[0] + size[0], pos[1] + size[1] });
     var float = try this.ctx.insert(this.desk, floatnode);
@@ -109,8 +113,16 @@ pub fn init(alloc: std.mem.Allocator, rand: std.rand.Random) !@This() {
 
     var doc = try this.create_doc(&document.intro_letter);
     var doc2 = try this.create_doc(&document.love_letter);
+    var doc3 = try this.create_doc(&document.controls);
+    if (this.ctx.get_node(doc3)) |controls| {
+        if (toggle_minify(&this.ctx, controls)) |node| {
+            _ = this.ctx.set_node(node);
+        }
+    }
+
     _ = doc;
     _ = doc2;
+    _ = doc3;
 
     return this;
 }
