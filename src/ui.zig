@@ -38,7 +38,14 @@ pub fn update(ui_ctx: *Context) void {
         },
     });
     ui_ctx.layout(.{ 0, 0, 160, 160 });
-    ui_ctx.paint();
+    if (w4.SYSTEM_FLAGS.* & w4.SYSTEM_PRESERVE_FRAMEBUFFER == 0) {
+        // If the framebuffer is not being preserved, just draw
+        ui_ctx.paint();
+    } else if (!g.vec.isZero(input.mousediff()) or input.mouse(.any)) {
+        w4.DRAW_COLORS.* = 0x1;
+        w4.rect(0, 0, 160, 160);
+        ui_ctx.paint();
+    }
     input.update();
 }
 

@@ -1,6 +1,7 @@
 const std = @import("std");
 const w4 = @import("wasm4");
 const zow4 = @import("zow4");
+const document = @import("document.zig");
 
 const verbose = false;
 
@@ -18,6 +19,7 @@ fn handle_grab(node: Node, event: zow4.ui.EventData) ?Node {
     const tag: []const u8 =  @tagName(node.layout);
     if (verbose) w4.trace(tag.ptr);
     if (node.layout != .Anchor) return null;
+    if (!event.pointer.left) return null;
     switch (node.layout) {
         .Anchor => |anchor| {
             // Store the anchor and
@@ -32,18 +34,27 @@ fn handle_grab(node: Node, event: zow4.ui.EventData) ?Node {
     return null;
 }
 
-pub fn create_doc(this: *@This()) !usize {
+var minify_node: ?usize = null;
+fn handle_minify(node: Node, event: zow4.ui.EventData) ?Node {
+    if (!event.pointer.right) return null;
+    minify_node = node.handle;
+    return null;
+}
+
+pub fn create_doc(this: *@This(), size: geom.Vec2) !usize {
+    const pad = 2;
     // Listen for events on this floating node, since it controls positioning.
     // This node uses the default of
     const floatnode = Node
-        .anchor(.{ 0, 0, 0, 0 }, .{ 20, 20, 100, 100 })
+        .anchor(.{ 0, 0, 0, 0 }, .{ 0, 0, size[0] + pad * 2, size[1] + pad * 2})
     ;
     var float = try this.ctx.insert(this.desk, floatnode);
     try this.ctx.listen(float, .PointerPress, handle_grab);
+    try this.ctx.listen(float, .PointerPress, handle_minify);
 
     // Capture events and pass them up
     const node = Node
-        .hlist()
+        .anchor(.{0,0,100,100}, .{pad,pad,pad,pad})
         .hasBackground(true)
         .capturePointer(true)
         .eventFilter(.Pass)
@@ -61,11 +72,11 @@ pub fn init(alloc: std.mem.Allocator) !@This() {
     };
     this.desk = try this.ctx.insert(null, Node.relative());
 
-    var doc = try this.create_doc();
-    _ = try this.ctx.insert(doc, Node.relative().dataValue(.{ .Label = "Hello" }).capturePointer(false).eventFilter(.Pass));
+    var doc = try this.create_doc(zow4.text.text_size(document.intro_letter.text));
+    _ = try this.ctx.insert(doc, Node.relative().dataValue(.{ .Label = document.intro_letter.text }).capturePointer(false).eventFilter(.Pass));
 
-    var doc2 = try this.create_doc();
-    _ = try this.ctx.insert(doc2, Node.relative().dataValue(.{ .Label = "Bye" }));
+    var doc2 = try this.create_doc(zow4.text.text_size(document.love_letter.text));
+    _ = try this.ctx.insert(doc2, Node.relative().dataValue(.{ .Label = document.love_letter.text }));
 
     return this;
 }
@@ -77,6 +88,10 @@ fn log(string: []const u8) void {
 pub fn update(this: *@This()) void {
     // if (zow4.input.mousep(.left)) w4.trace("click");
     ui.update(&this.ctx);
+    if (minify_node) |node| {
+        if (!this.ctx.hide_node(node) and verbose) w4.tracef("%d not found", node);
+        minify_node = null;
+    }
     if (grabbed) |*grab| {
         if (this.ctx.get_node(grab.handle)) |*node| {
             const pos = zow4.input.mousepos() - grab.diff;

@@ -16,6 +16,8 @@ const verbose = false;
 export fn start() void {
     if (verbose) w4.trace("[START] begin");
 
+    w4.SYSTEM_FLAGS.* = w4.SYSTEM_PRESERVE_FRAMEBUFFER;
+
     var scn = Scene1.init(fba.allocator()) catch |e| {
         switch (e) {
             error.OutOfMemory => zow4.mem.report_memory_usage(fba),
