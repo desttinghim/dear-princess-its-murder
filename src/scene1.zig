@@ -11,6 +11,7 @@ const ui = @import("ui.zig");
 const Node = ui.Context.Node;
 
 allocator: std.mem.Allocator,
+rand: std.rand.Random,
 ctx: ui.Context,
 desk: usize,
 
@@ -70,7 +71,9 @@ pub fn create_doc(this: *@This(), doc: *const document.Document) !usize {
     const size = geom.Vec2{ doc.cols + pad * 2, doc.lines + pad * 2 };
     // Listen for events on this floating node, since it controls positioning.
     // This node uses the default of
-    const pos = (geom.Vec2{ 80, 80 }) - @divTrunc(size, geom.Vec2{ 2, 2 });
+    const rand = this.rand.intRangeLessThanBiased;
+    const offset = geom.Vec2{rand(i32, -40, 40), rand(i32, -40, 40)};
+    const pos = (geom.Vec2{ 80, 80 }) - @divTrunc(size, geom.Vec2{ 2, 2 }) + offset;
     const floatnode = Node.anchor(.{ 0, 0, 0, 0 }, .{ pos[0], pos[1], pos[0] + size[0], pos[1] + size[1] });
     var float = try this.ctx.insert(this.desk, floatnode);
     try this.ctx.listen(float, .PointerPress, handle_grab);
@@ -94,10 +97,11 @@ pub fn create_doc(this: *@This(), doc: *const document.Document) !usize {
     return content;
 }
 
-pub fn init(alloc: std.mem.Allocator) !@This() {
+pub fn init(alloc: std.mem.Allocator, rand: std.rand.Random) !@This() {
     var ctx = try ui.init(alloc);
     var this = @This(){
         .allocator = alloc,
+        .rand = rand,
         .ctx = ctx,
         .desk = undefined,
     };

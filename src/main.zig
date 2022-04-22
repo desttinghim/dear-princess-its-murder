@@ -8,6 +8,7 @@ const Scene1 = @import("scene1.zig");
 const KB = 1024;
 var heap: [24 * KB]u8 = undefined;
 var fba: std.heap.FixedBufferAllocator = std.heap.FixedBufferAllocator.init(&heap);
+var prng: std.rand.DefaultPrng = undefined;
 
 var scene: Scene1 = undefined;
 
@@ -18,7 +19,9 @@ export fn start() void {
 
     w4.SYSTEM_FLAGS.* = w4.SYSTEM_PRESERVE_FRAMEBUFFER;
 
-    var scn = Scene1.init(fba.allocator()) catch |e| {
+    prng = std.rand.DefaultPrng.init(0);
+
+    var scn = Scene1.init(fba.allocator(), prng.random()) catch |e| {
         switch (e) {
             error.OutOfMemory => zow4.mem.report_memory_usage(fba),
         }
