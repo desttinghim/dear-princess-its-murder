@@ -1,7 +1,9 @@
 const std = @import("std");
 const w4 = @import("wasm4");
 const zow4 = @import("zow4");
+
 const document = @import("document.zig");
+const image = @import("image.zig");
 
 const verbose = false;
 
@@ -14,6 +16,7 @@ allocator: std.mem.Allocator,
 rand: std.rand.Random,
 ctx: ui.Context,
 desk: usize,
+dialog_box: ?usize,
 
 var grabbed: ?struct { handle: usize, diff: geom.Vec2 } = null;
 fn handle_grab(ctx: *ui.Context, node: Node, event: zow4.ui.EventData) ?Node {
@@ -70,6 +73,11 @@ fn toggle_minify(ctx: *ui.Context, node: Node) ?Node {
     return null;
 }
 
+fn handle_delete(ctx: *ui.Context, node: Node, _: zow4.ui.EventData) ?Node {
+    ctx.remove(node.handle);
+    return null;
+}
+
 pub fn create_doc(this: *@This(), doc: *const document.Document) !usize {
     const pad = 2;
     const size = geom.Vec2{ doc.cols + pad * 2, doc.lines + pad * 2 };
@@ -101,6 +109,24 @@ pub fn create_doc(this: *@This(), doc: *const document.Document) !usize {
     return content;
 }
 
+pub fn create_dialog(this: *@This(), img: zow4.draw.Blit) !usize {
+    if (this.dialog_box) |handle| {
+        this.ctx.remove(handle);
+    }
+    // Positions at bottom with 2px of padding
+    this.dialog_box = try this.ctx.insert(null, Node.anchor(.{0, 100, 100, 100}, .{2, -40, -2, -2},).capturePointer(true));
+    try this.ctx.listen(this.dialog_box.?, .PointerClick, handle_delete);
+    // Positions portrait above the dialog
+    const portrait_box = try this.ctx.insert(this.dialog_box, Node.anchor(.{0, 0, 0, 0}, .{0, -36, 36, -2}));
+    //
+    const content_box = try this.ctx.insert(this.dialog_box, Node.anchor(.{0, 0, 100, 100}, .{2, 2, -2, -2}).hasBackground(true));
+
+    _= try this.ctx.insert(portrait_box, Node.fill().dataValue(.{.Image = img}).hasBackground(true));
+    _= try this.ctx.insert(content_box, Node.fill().dataValue(.{.Label = "Words"}));
+
+    return content_box;
+}
+
 pub fn init(alloc: std.mem.Allocator, rand: std.rand.Random) !@This() {
     var ctx = try ui.init(alloc);
     var this = @This(){
@@ -108,8 +134,10 @@ pub fn init(alloc: std.mem.Allocator, rand: std.rand.Random) !@This() {
         .rand = rand,
         .ctx = ctx,
         .desk = undefined,
+        .dialog_box = null,
     };
     this.desk = try this.ctx.insert(null, Node.relative());
+    _ = try this.create_dialog(.{ .style = 0x04, .bmp = &image.bubbles_bmp });
 
     var doc = try this.create_doc(&document.intro_letter);
     var doc2 = try this.create_doc(&document.love_letter);

@@ -2,10 +2,9 @@ const std = @import("std");
 const w4 = @import("wasm4");
 const zow4 = @import("zow4");
 
+const image = @import("image.zig");
 const ui = @import("ui.zig");
 const Scene1 = @import("scene1.zig");
-
-const title_bmp = zow4.draw.load_bitmap(@embedFile("../assets/title-screen.bmp")) catch @compileError("eep");
 
 const KB = 1024;
 var heap: [24 * KB]u8 = undefined;
@@ -33,7 +32,7 @@ export fn update() void {
         scn.update();
     } else {
         w4.DRAW_COLORS.* = 0x04;
-        title_bmp.blit(zow4.geometry.Vec2{ 0, 0 }, .{ .bpp = .b1 });
+        image.title_bmp.blit(zow4.geometry.Vec2{ 0, 0 }, .{ .bpp = .b1 });
         w4.DRAW_COLORS.* = 0x01;
         w4.oval(12, 145, 8, 10);
         w4.oval(128, 145, 8, 10);

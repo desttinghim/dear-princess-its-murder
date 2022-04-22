@@ -56,7 +56,7 @@ pub const UI = union(enum) {
     /// Draws a Document to the screen
     Document: struct { doc: *const Document, mini: bool, desk_pos: g.Vec2 },
     /// Draws an image to the screen. Assumes there is another array containing image info
-    Image: *draw.Blit,
+    Image: draw.Blit,
     /// Button
     Button: []const u8,
 
