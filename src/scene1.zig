@@ -73,8 +73,11 @@ fn toggle_minify(ctx: *ui.Context, node: Node) ?Node {
     return null;
 }
 
-fn handle_delete(ctx: *ui.Context, node: Node, _: zow4.ui.EventData) ?Node {
+fn handle_dialog(ctx: *ui.Context, node: Node, _: zow4.ui.EventData) ?Node {
     ctx.remove(node.handle);
+    if (frame_ptr) |f| {
+        resume f;
+    }
     return null;
 }
 
@@ -109,20 +112,23 @@ pub fn create_doc(this: *@This(), doc: *const document.Document) !usize {
     return content;
 }
 
-pub fn create_dialog(this: *@This(), img: zow4.draw.Blit) !usize {
+pub fn create_dialog(this: *@This(), img: zow4.draw.Blit, text: []const u8) !usize {
     if (this.dialog_box) |handle| {
         this.ctx.remove(handle);
     }
     // Positions at bottom with 2px of padding
-    this.dialog_box = try this.ctx.insert(null, Node.anchor(.{0, 100, 100, 100}, .{2, -40, -2, -2},).capturePointer(true));
-    try this.ctx.listen(this.dialog_box.?, .PointerClick, handle_delete);
+    this.dialog_box = try this.ctx.insert(null, Node.anchor(
+        .{ 0, 100, 100, 100 },
+        .{ 2, -40, -2, -2 },
+    ).capturePointer(true));
+    try this.ctx.listen(this.dialog_box.?, .PointerClick, handle_dialog);
     // Positions portrait above the dialog
-    const portrait_box = try this.ctx.insert(this.dialog_box, Node.anchor(.{0, 0, 0, 0}, .{0, -36, 36, -2}));
+    const portrait_box = try this.ctx.insert(this.dialog_box, Node.anchor(.{ 0, 0, 0, 0 }, .{ 0, -36, 36, -2 }));
     //
-    const content_box = try this.ctx.insert(this.dialog_box, Node.anchor(.{0, 0, 100, 100}, .{2, 2, -2, -2}).hasBackground(true));
+    const content_box = try this.ctx.insert(this.dialog_box, Node.anchor(.{ 0, 0, 100, 100 }, .{ 2, 2, -2, -2 }).hasBackground(true));
 
-    _= try this.ctx.insert(portrait_box, Node.fill().dataValue(.{.Image = img}).hasBackground(true));
-    _= try this.ctx.insert(content_box, Node.fill().dataValue(.{.Label = "Words"}));
+    _ = try this.ctx.insert(portrait_box, Node.fill().dataValue(.{ .Image = img }).hasBackground(true));
+    _ = try this.ctx.insert(content_box, Node.fill().dataValue(.{ .Label = text }));
 
     return content_box;
 }
@@ -137,7 +143,7 @@ pub fn init(alloc: std.mem.Allocator, rand: std.rand.Random) !@This() {
         .dialog_box = null,
     };
     this.desk = try this.ctx.insert(null, Node.relative());
-    _ = try this.create_dialog(.{ .style = 0x04, .bmp = &image.bubbles_bmp });
+    _ = try this.create_dialog(.{ .style = 0x04, .bmp = &image.bubbles_bmp }, "Uh, welcome to the\ngame.\nI guess.");
 
     var doc = try this.create_doc(&document.intro_letter);
     var doc2 = try this.create_doc(&document.love_letter);
@@ -155,11 +161,43 @@ pub fn init(alloc: std.mem.Allocator, rand: std.rand.Random) !@This() {
     return this;
 }
 
+fn scene_script(this: *@This()) !void {
+    const messages = .{
+        \\Uh, welcome to the
+        \\game I guess.
+        ,
+        \\It's a work in
+        \\progress but you
+        \\can take a look
+        \\around.
+        ,
+        \\Anyway, I've got to
+        \\head out now. Say
+        \\hi to Pinks for me!
+        ,
+    };
+    _ = try this.create_dialog(.{ .style = 0x04, .bmp = &image.bubbles_bmp }, messages[0]);
+    suspend {}
+    _ = try this.create_dialog(.{ .style = 0x04, .bmp = &image.bubbles_bmp }, messages[1]);
+    suspend {}
+    _ = try this.create_dialog(.{ .style = 0x04, .bmp = &image.bubbles_bmp }, messages[2]);
+    frame_ptr = null;
+}
+
 fn log(string: []const u8) void {
     w4.traceUtf8(string.ptr, string.len);
 }
 
+var started = false;
+var frame: @Frame(scene_script) = undefined;
+var frame_ptr: ?anyframe = null;
+
 pub fn update(this: *@This()) void {
+    if (frame_ptr == null and !started) {
+        started = true;
+        frame = async scene_script(this);
+        frame_ptr = &frame;
+    }
     // if (zow4.input.mousep(.left)) w4.trace("click");
     ui.update(&this.ctx);
     if (grabbed) |*grab| {

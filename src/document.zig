@@ -107,7 +107,7 @@ pub const intro_letter = Document.fromText(
     \\find some time to
     \\catch up! It's been
     \\boring here without
-    \\you're brilliant
+    \\your brilliant
     \\intellect to keep
     \\things sparkling...
     \\
