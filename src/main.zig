@@ -36,8 +36,6 @@ var runner: Runner = .{
 export fn start() void {
     if (verbose) w4.trace("[START] begin");
 
-    // w4.SYSTEM_FLAGS.* = w4.SYSTEM_PRESERVE_FRAMEBUFFER;
-
     prng = std.rand.DefaultPrng.init(0);
     runner.rand = prng.random();
 
@@ -71,51 +69,9 @@ export fn update() void {
         },
     }
 
-    // if (scene) |*scn| {
-    //     scn.update();
-    // } else {
-    //     w4.DRAW_COLORS.* = 0x04;
-    //     image.title_bmp.blit(zow4.geometry.Vec2{ 0, 0 }, .{ .bpp = .b1 });
-    //     w4.DRAW_COLORS.* = 0x01;
-    //     w4.oval(12, 145, 8, 10);
-    //     w4.oval(128, 145, 8, 10);
-    //     w4.rect(16, 145, 116, 10);
-    //     w4.DRAW_COLORS.* = 0x14;
-    //     w4.text("Click to Start", 16, 148);
-    //     if (zow4.input.mouser(.left)) {
-    //         scene = Scene1.init(runner) catch |e| {
-    //             switch (e) {
-    //                 error.OutOfMemory => zow4.mem.report_memory_usage(fba),
-    //             }
-    //             zow4.panic("Couldn't start scene1");
-    //             unreachable;
-    //         };
-    //     }
-    // }
     zow4.input.update();
 
     if (verbose) w4.trace("[UPDATE] end");
 }
-
-// pub fn Scene(comptime T: anytype) ScenePtrs {
-//     if (@hasField(T, "start")) {
-//         @compileLog("Scene requires start function", T);
-//     }
-//     if (@hasField(T, "update")) {
-//         @compileLog("Scene requires update function", T);
-//     }
-//     if (@hasField(T, "end")) {
-//         @compileLog("Scene requires end function", T);
-//     }
-//     return .{
-//         .start = @field(T, "start"),
-//         .update = @field(T, "update"),
-//         .end = @field(T, "end"),
-//     };
-// }
-
-// pub const ScenePtrs = struct {
-//     update: fn (Runner) void,
-// };
 
 test "" {}
