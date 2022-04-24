@@ -18,6 +18,7 @@ allocator: std.mem.Allocator,
 rand: std.rand.Random,
 ctx: ui.Context,
 desk: usize,
+hud: usize,
 dialog_box: ?usize,
 
 var grabbed: ?struct { handle: usize, diff: geom.Vec2 } = null;
@@ -121,15 +122,14 @@ pub fn create_dialog(this: *@This(), img: zow4.draw.Blit, text: []const u8) !usi
         this.ctx.remove(handle);
     }
     // Positions at bottom with 2px of padding
-    this.dialog_box = try this.ctx.insert(null, Node.anchor(
+    this.dialog_box = try this.ctx.insert(this.hud, Node.anchor(
         .{ 0, 100, 100, 100 },
         .{ 2, -40, -2, -2 },
-    ).capturePointer(true));
+    ));
     try this.ctx.listen(this.dialog_box.?, .PointerClick, handle_dialog);
     // Positions portrait above the dialog
     const portrait_box = try this.ctx.insert(this.dialog_box, Node.anchor(.{ 0, 0, 0, 0 }, .{ 0, -36, 36, -2 }));
-    //
-    const content_box = try this.ctx.insert(this.dialog_box, Node.anchor(.{ 0, 0, 100, 100 }, .{ 2, 2, -2, -2 }).hasBackground(true));
+    const content_box = try this.ctx.insert(this.dialog_box, Node.anchor(.{ 0, 0, 100, 100 }, .{ 2, 2, -2, -2 }).hasBackground(true).capturePointer(true).eventFilter(.Pass));
 
     _ = try this.ctx.insert(portrait_box, Node.fill().dataValue(.{ .Image = img }).hasBackground(true));
     _ = try this.ctx.insert(content_box, Node.fill().dataValue(.{ .Label = text }));
@@ -147,9 +147,15 @@ pub fn init(runner: Runner) !@This() {
         .ctx = ctx,
         .desk = undefined,
         .dialog_box = null,
+        .hud = undefined,
     };
     this.desk = try this.ctx.insert(null, Node.relative().dataValue(.{.Image = .{.style = 0x04, .bmp = &image.coffee_shop_bmp}}));
-    _ = try this.create_dialog(.{ .style = 0x04, .bmp = &image.bubbles_bmp }, "Uh, welcome to the\ngame.\nI guess.");
+    this.hud = try this.ctx.insert(null, Node.anchor(.{0,0,100,100},.{0,0,0,0}));
+    // _ = try this.create_dialog(.{ .style = 0x04, .bmp = &image.bubbles_bmp }, "Uh, welcome to the\ngame.\nI guess.");
+    var b = try this.ctx.insert(this.hud, Node.anchor(.{0,0,100,0},.{0, 0, 0, 16}));
+    var button_list = try this.ctx.insert(b, Node.hlist());
+    var btn_highlight = try this.ctx.insert(button_list, Node.relative().dataValue(.{.Button = "H"}).capturePointer(true));
+    _ = btn_highlight;
 
     var doc = try this.create_doc(&document.intro_letter);
     var doc2 = try this.create_doc(&document.love_letter);
@@ -168,6 +174,7 @@ pub fn init(runner: Runner) !@This() {
     _ = doc4;
     _ = doc5;
 
+    w4.trace("end of init");
     return this;
 }
 
@@ -208,7 +215,10 @@ pub fn update(this: *@This()) void {
         frame = async scene_script(this);
         frame_ptr = &frame;
     }
-    // if (zow4.input.mousep(.left)) w4.trace("click");
+    if (zow4.input.btnp(.one, .z)) {
+        this.ctx.print_debug(this.allocator, log);
+    }
+
     ui.update(&this.ctx);
     if (grabbed) |*grab| {
         if (this.ctx.get_node(grab.handle)) |*node| {
@@ -216,12 +226,6 @@ pub fn update(this: *@This()) void {
             const size = geom.rect.size(node.layout.Anchor.margin);
             node.layout.Anchor.margin = geom.Rect{ pos[0], pos[1], pos[0] + size[0], pos[1] + size[1] };
             if (!this.ctx.set_node(node.*)) w4.trace("[UPDATE] Grab - failed to find node");
-            // if (!grab.moved) {
-            //     if (verbose) this.ctx.print_debug(this.allocator, log);
-            //     this.ctx.bring_to_front(node.handle);
-            //     grab.moved = true;
-            //     if (verbose) w4.trace("moved");
-            // }
             if (!zow4.input.mouse(.left)) grabbed = null;
         }
     }

@@ -47,7 +47,6 @@ pub fn update(ui_ctx: *Context) void {
         w4.rect(0, 0, 160, 160);
         ui_ctx.paint();
     }
-    input.update();
 }
 
 pub const UI = union(enum) {
