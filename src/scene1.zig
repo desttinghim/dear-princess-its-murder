@@ -5,6 +5,8 @@ const zow4 = @import("zow4");
 const document = @import("document.zig");
 const image = @import("image.zig");
 
+const Runner = @import("main.zig").Runner;
+
 const verbose = false;
 
 const geom = zow4.geometry;
@@ -135,7 +137,9 @@ pub fn create_dialog(this: *@This(), img: zow4.draw.Blit, text: []const u8) !usi
     return content_box;
 }
 
-pub fn init(alloc: std.mem.Allocator, rand: std.rand.Random) !@This() {
+pub fn init(runner: Runner) !@This() {
+    const alloc = runner.alloc;
+    const rand = runner.rand;
     var ctx = try ui.init(alloc);
     var this = @This(){
         .allocator = alloc,
