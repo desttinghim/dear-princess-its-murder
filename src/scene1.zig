@@ -107,6 +107,8 @@ pub fn create_doc(this: *@This(), doc: *const document.Document) !usize {
         .capturePointer(true)
         .eventFilter(.Pass);
     const content = try this.ctx.insert(paper, contentnode);
+    // TODO: move this to the paper node. It will require functions for
+    // querying children
     try this.ctx.listen(content, .PointerPress, handle_minify);
 
     return content;
@@ -148,6 +150,8 @@ pub fn init(alloc: std.mem.Allocator, rand: std.rand.Random) !@This() {
     var doc = try this.create_doc(&document.intro_letter);
     var doc2 = try this.create_doc(&document.love_letter);
     var doc3 = try this.create_doc(&document.controls);
+    var doc4 = try this.create_doc(&document.pinks_ledger);
+    var doc5 = try this.create_doc(&document.eviction_notice);
     if (this.ctx.get_node(doc3)) |controls| {
         if (toggle_minify(&this.ctx, controls)) |node| {
             _ = this.ctx.set_node(node);
@@ -157,6 +161,8 @@ pub fn init(alloc: std.mem.Allocator, rand: std.rand.Random) !@This() {
     _ = doc;
     _ = doc2;
     _ = doc3;
+    _ = doc4;
+    _ = doc5;
 
     return this;
 }

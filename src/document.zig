@@ -149,3 +149,32 @@ pub const love_letter = Document.fromText(
     \\
     \\ -
 );
+
+pub const eviction_notice = Document.fromText(
+    \\Dear Pinks Baker,
+    \\
+    \\This is a warn-
+    \\ing. We will be
+    \\evicting you at
+    \\the end of the
+    \\month unless you
+    \\pay your rent.
+    \\
+    \\Your Landlord,
+    \\Blueblood
+);
+
+pub const pinks_ledger = pinks: {
+    const data = .{
+        .{ 0, "2/2", "Coffee", 100 },
+        .{ 1, "2/8", "Rent", 700 },
+    };
+    const format_str = "\n{:>3}|{s:^6}|{s:<7}|{:>6}g" ** data.len;
+    const new_fmt =
+        \\Ln | Date | Desc. | Amount
+        \\---+------+-------+-------
+    ++ format_str;
+    var new_data = data[0] ++ data[1];
+    const ledger = Document.fromText(std.fmt.comptimePrint(new_fmt, new_data));
+    break :pinks ledger;
+};
