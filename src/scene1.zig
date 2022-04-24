@@ -144,7 +144,7 @@ pub fn init(alloc: std.mem.Allocator, rand: std.rand.Random) !@This() {
         .desk = undefined,
         .dialog_box = null,
     };
-    this.desk = try this.ctx.insert(null, Node.relative());
+    this.desk = try this.ctx.insert(null, Node.relative().dataValue(.{.Image = .{.style = 0x04, .bmp = &image.coffee_shop_bmp}}));
     _ = try this.create_dialog(.{ .style = 0x04, .bmp = &image.bubbles_bmp }, "Uh, welcome to the\ngame.\nI guess.");
 
     var doc = try this.create_doc(&document.intro_letter);
