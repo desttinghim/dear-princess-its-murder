@@ -80,7 +80,7 @@ pub const Document = struct {
     pub fn slice_from_col_line(this: @This(), col: usize, line: usize) ?[]const u8 {
         if (col > this.cols or line > this.lines) return null;
         const index = this.index_from_col_line(col, line);
-        return this.text[index .. index + 1];
+        return this.text[index .. index];
     }
 
     pub fn slice_to_eol(this: @This(), col: usize, line: usize) ?[]const u8 {

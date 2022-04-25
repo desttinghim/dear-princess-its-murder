@@ -62,17 +62,15 @@ fn handle_highlight(ctx: *ui.Context, node: Node, event: zow4.ui.EventData) ?Nod
         std.debug.assert(node.data.? == .Document);
 
         const doc = node.data.?.Document.doc;
+        const col = std.math.clamp(@intCast(usize, @divTrunc(event.pointer.pos[0] - node.bounds[0], 8)), 0, doc.cols);
+        const line = std.math.clamp(@intCast(usize, @divTrunc(event.pointer.pos[1] - node.bounds[1], 8)), 0, doc.lines);
 
         const state = highlight_state;
         switch (state) {
             .hover => {
                 if (event._type == .PointerPress) {
-                    w4.trace("start");
-                    const col = @intCast(usize, @divTrunc(event.pointer.pos[0] - node.bounds[0], 8));
-                    const line = @intCast(usize, @divTrunc(event.pointer.pos[1] - node.bounds[1], 8));
-                    if (doc.slice_from_col_line(col, line)) |index| {
+                    if (doc.slice_from_col_line(col, line)) |_| {
                         highlight_state = .{ .start = .{ .line = line, .col = col, .handle = node.handle } };
-                        w4.traceUtf8(index.ptr, index.len);
                     }
                 }
             },
@@ -81,13 +79,8 @@ fn handle_highlight(ctx: *ui.Context, node: Node, event: zow4.ui.EventData) ?Nod
                     if (node.handle != histart.handle) {
                         return null;
                     }
-                    const col = @intCast(usize, @divTrunc(event.pointer.pos[0] - node.bounds[0], 8));
-                    const line = @intCast(usize, @divTrunc(event.pointer.pos[1] - node.bounds[1], 8));
-                    if (doc.slice_from_col_line_2(histart.col, histart.line, col, line)) |ptr| {
+                    if (doc.slice_from_col_line_2(histart.col, histart.line, col, line)) |_| {
                         highlight_state = .hover;
-                        w4.traceUtf8(ptr.ptr, ptr.len);
-                    } else {
-                        w4.trace("couldn't get slice");
                     }
                 }
             },
