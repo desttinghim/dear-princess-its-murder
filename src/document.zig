@@ -59,7 +59,7 @@ pub const Document = struct {
             if (line_slice.len <= col) return index + line_slice.len;
             return index + col;
         }
-        unreachable;
+        return index - 1;
     }
 
     fn index_from_line(this: @This(), line: usize) usize {
@@ -86,6 +86,7 @@ pub const Document = struct {
     pub fn slice_to_eol(this: @This(), col: usize, line: usize) ?[]const u8 {
         if (col > this.cols or line > this.lines) return null;
         const index = this.index_from_col_line(col, line);
+        if (line + 1 >= this.lines) return this.text[index .. ];
         const index2 = this.index_from_line(line + 1);
         return this.text[index .. index2];
     }
@@ -117,9 +118,9 @@ pub const Document = struct {
         const index1 = this.index_from_col_line(col1, line1);
         const index2 = this.index_from_col_line(col2, line2);
         return if (index1 < index2)
-            this.text[index1 .. index2 + 1]
+            this.text[index1 .. index2]
         else
-            this.text[index2 .. index1 + 1];
+            this.text[index2 .. index1];
     }
 
     pub const HighlightIterator = struct {

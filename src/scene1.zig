@@ -287,9 +287,9 @@ pub fn update(this: *@This()) void {
             const node = this.ctx.get_node(highlight_state.start.handle) orelse break :draw_highlight;
             const data = node.data orelse break :draw_highlight;
             if (data != .Document) break :draw_highlight;
-            if (@reduce(.And, mousepos < geom.rect.top_left(node.bounds))) break :draw_highlight;
-            // TODO: Stop crashing when going outside of bounds
-            const col = @intCast(usize, @divTrunc(mousepos[0] - node.bounds[0], 8));
+            if (@reduce(.Or, mousepos < geom.rect.top_left(node.bounds))) break :draw_highlight;
+            if (@reduce(.Or, mousepos > geom.rect.bottom_right(node.bounds))) break :draw_highlight;
+            const col = @intCast(usize, @divTrunc(mousepos[0] - node.bounds[0] + 4, 8));
             const line = @intCast(usize, @divTrunc(mousepos[1] - node.bounds[1], 8));
             if (highlight_state.start.line < line or (highlight_state.start.line == line and highlight_state.start.col <= col)) {
                 // The beginning is above, or to the left of the cursor
@@ -298,12 +298,10 @@ pub fn update(this: *@This()) void {
                 if (data.Document.doc.slice_first_line(highlight_state.start.col, highlight_state.start.line, col, line)) |ptr| {
                     w4.DRAW_COLORS.* = 0x41;
                     w4.textUtf8(ptr.ptr, ptr.len, draw_x, draw_y);
-                    // w4.traceUtf8(ptr.ptr, ptr.len);
                 }
                 if (data.Document.doc.slice_rest(highlight_state.start.col, highlight_state.start.line, col, line)) |ptr| {
                     w4.DRAW_COLORS.* = 0x41;
                     w4.textUtf8(ptr.ptr, ptr.len, node.bounds[0], draw_y + 8);
-                    // w4.traceUtf8(ptr.ptr, ptr.len);
                 }
             } else {
                 // The beginning is below, or to the right of the cursor
@@ -312,12 +310,10 @@ pub fn update(this: *@This()) void {
                 if (data.Document.doc.slice_first_line(highlight_state.start.col, highlight_state.start.line, col, line)) |ptr| {
                     w4.DRAW_COLORS.* = 0x41;
                     w4.textUtf8(ptr.ptr, ptr.len, draw_x, draw_y);
-                    // w4.traceUtf8(ptr.ptr, ptr.len);
                 }
                 if (data.Document.doc.slice_rest(highlight_state.start.col, highlight_state.start.line, col, line)) |ptr| {
                     w4.DRAW_COLORS.* = 0x41;
                     w4.textUtf8(ptr.ptr, ptr.len, node.bounds[0], draw_y + 8);
-                    // w4.traceUtf8(ptr.ptr, ptr.len);
                 }
             }
         }
