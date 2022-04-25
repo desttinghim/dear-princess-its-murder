@@ -291,7 +291,8 @@ pub fn update(this: *@This()) void {
             // TODO: Stop crashing when going outside of bounds
             const col = @intCast(usize, @divTrunc(mousepos[0] - node.bounds[0], 8));
             const line = @intCast(usize, @divTrunc(mousepos[1] - node.bounds[1], 8));
-            if (highlight_state.start.line <= line and highlight_state.start.col <= col) {
+            if (highlight_state.start.line < line or (highlight_state.start.line == line and highlight_state.start.col <= col)) {
+                // The beginning is above, or to the left of the cursor
                 const draw_x = node.bounds[0] + @intCast(i32, highlight_state.start.col * 8);
                 const draw_y = node.bounds[1] + @intCast(i32, highlight_state.start.line * 8);
                 if (data.Document.doc.slice_first_line(highlight_state.start.col, highlight_state.start.line, col, line)) |ptr| {
@@ -305,6 +306,7 @@ pub fn update(this: *@This()) void {
                     // w4.traceUtf8(ptr.ptr, ptr.len);
                 }
             } else {
+                // The beginning is below, or to the right of the cursor
                 const draw_x = node.bounds[0] + @intCast(i32, col * 8);
                 const draw_y = node.bounds[1] + @intCast(i32, line * 8);
                 if (data.Document.doc.slice_first_line(highlight_state.start.col, highlight_state.start.line, col, line)) |ptr| {

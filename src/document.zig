@@ -83,12 +83,11 @@ pub const Document = struct {
         return this.text[index .. index + 1];
     }
 
-    // TODO: figure out why this is crashing on empty lines
     pub fn slice_to_eol(this: @This(), col: usize, line: usize) ?[]const u8 {
         if (col > this.cols or line > this.lines) return null;
-        const index = this.index_from_line(line);
+        const index = this.index_from_col_line(col, line);
         const index2 = this.index_from_line(line + 1);
-        return this.text[index + col .. index2];
+        return this.text[index .. index2];
     }
 
     pub fn slice_from_eol(this: @This(), col: usize, line: usize) ?[]const u8 {
