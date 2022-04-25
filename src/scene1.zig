@@ -70,9 +70,9 @@ fn handle_highlight(ctx: *ui.Context, node: Node, event: zow4.ui.EventData) ?Nod
                     w4.trace("start");
                     const col = @intCast(usize, @divTrunc(event.pointer.pos[0] - node.bounds[0], 8));
                     const line = @intCast(usize, @divTrunc(event.pointer.pos[1] - node.bounds[1], 8));
-                    if (doc.slice_from_col_line(col, line)) |ptr| {
+                    if (doc.slice_from_col_line(col, line)) |index| {
                         highlight_state = .{ .start = .{ .line = line, .col = col, .handle = node.handle } };
-                        w4.traceUtf8(ptr.ptr, ptr.len);
+                        w4.traceUtf8(index.ptr, index.len);
                     }
                 }
             },
@@ -280,14 +280,44 @@ pub fn update(this: *@This()) void {
 
     ui.update(&this.ctx);
     if (highlight) {
-        const pos = zow4.input.mousepos();
+        const mousepos = zow4.input.mousepos();
         w4.DRAW_COLORS.* = 0x04;
-        w4.rect(pos[0] - 2, pos[1] - 4, 4, 8);
+        w4.rect(mousepos[0] - 2, mousepos[1] - 4, 4, 8);
         if (highlight_state == .start) draw_highlight: {
             const node = this.ctx.get_node(highlight_state.start.handle) orelse break :draw_highlight;
-            const col = @intCast(i32, highlight_state.start.col);
-            const line = @intCast(i32, highlight_state.start.line);
-            w4.rect(node.bounds[0] + col * 8, node.bounds[1] + line * 8, 8, 8);
+            const data = node.data orelse break :draw_highlight;
+            if (data != .Document) break :draw_highlight;
+            if (@reduce(.And, mousepos < geom.rect.top_left(node.bounds))) break :draw_highlight;
+            // TODO: Stop crashing when going outside of bounds
+            const col = @intCast(usize, @divTrunc(mousepos[0] - node.bounds[0], 8));
+            const line = @intCast(usize, @divTrunc(mousepos[1] - node.bounds[1], 8));
+            if (highlight_state.start.line <= line and highlight_state.start.col <= col) {
+                const draw_x = node.bounds[0] + @intCast(i32, highlight_state.start.col * 8);
+                const draw_y = node.bounds[1] + @intCast(i32, highlight_state.start.line * 8);
+                if (data.Document.doc.slice_first_line(highlight_state.start.col, highlight_state.start.line, col, line)) |ptr| {
+                    w4.DRAW_COLORS.* = 0x41;
+                    w4.textUtf8(ptr.ptr, ptr.len, draw_x, draw_y);
+                    // w4.traceUtf8(ptr.ptr, ptr.len);
+                }
+                if (data.Document.doc.slice_rest(highlight_state.start.col, highlight_state.start.line, col, line)) |ptr| {
+                    w4.DRAW_COLORS.* = 0x41;
+                    w4.textUtf8(ptr.ptr, ptr.len, node.bounds[0], draw_y + 8);
+                    // w4.traceUtf8(ptr.ptr, ptr.len);
+                }
+            } else {
+                const draw_x = node.bounds[0] + @intCast(i32, col * 8);
+                const draw_y = node.bounds[1] + @intCast(i32, line * 8);
+                if (data.Document.doc.slice_first_line(highlight_state.start.col, highlight_state.start.line, col, line)) |ptr| {
+                    w4.DRAW_COLORS.* = 0x41;
+                    w4.textUtf8(ptr.ptr, ptr.len, draw_x, draw_y);
+                    // w4.traceUtf8(ptr.ptr, ptr.len);
+                }
+                if (data.Document.doc.slice_rest(highlight_state.start.col, highlight_state.start.line, col, line)) |ptr| {
+                    w4.DRAW_COLORS.* = 0x41;
+                    w4.textUtf8(ptr.ptr, ptr.len, node.bounds[0], draw_y + 8);
+                    // w4.traceUtf8(ptr.ptr, ptr.len);
+                }
+            }
         }
     }
     if (grabbed) |*grab| {

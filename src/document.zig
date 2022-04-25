@@ -46,46 +46,81 @@ pub const Document = struct {
         };
     }
 
-    pub fn slice_from_col_line(this: @This(), col: usize, line: usize) ?[]const u8 {
+    fn index_from_col_line(this: @This(), col: usize, line: usize) usize {
+        std.debug.assert(col <= this.cols and line <= this.lines);
         var lineiter = std.mem.split(u8, this.text, "\n");
         var i: usize = 0;
+        var index: usize = 0;
         while (lineiter.next()) |line_slice| : (i += 1) {
-            if (i != line) continue;
-            if (line_slice.len <= col) return null;
-            return line_slice[col .. col + 1];
+            if (i != line) {
+                index += line_slice.len + 1;
+                continue;
+            }
+            if (line_slice.len <= col) return index + line_slice.len;
+            return index + col;
         }
-        return null;
+        unreachable;
+    }
+
+    fn index_from_line(this: @This(), line: usize) usize {
+        std.debug.assert(line <= this.lines);
+        var lineiter = std.mem.split(u8, this.text, "\n");
+        var i: usize = 0;
+        var index: usize = 0;
+        while (lineiter.next()) |line_slice| : (i += 1) {
+            if (i != line) {
+                index += line_slice.len + 1;
+                continue;
+            }
+            return index;
+        }
+        return index - 1;
+    }
+
+    pub fn slice_from_col_line(this: @This(), col: usize, line: usize) ?[]const u8 {
+        if (col > this.cols or line > this.lines) return null;
+        const index = this.index_from_col_line(col, line);
+        return this.text[index .. index + 1];
+    }
+
+    // TODO: figure out why this is crashing on empty lines
+    pub fn slice_to_eol(this: @This(), col: usize, line: usize) ?[]const u8 {
+        if (col > this.cols or line > this.lines) return null;
+        const index = this.index_from_line(line);
+        const index2 = this.index_from_line(line + 1);
+        return this.text[index + col .. index2];
+    }
+
+    pub fn slice_from_eol(this: @This(), col: usize, line: usize) ?[]const u8 {
+        if (col > this.cols or line > this.lines) return null;
+        const index = if (line == 0 ) 0 else this.index_from_line(line - 1);
+        const index2 = this.index_from_line(line);
+        return this.text[index .. index2 + col];
+    }
+
+    pub fn slice_first_line(this: @This(), col1: usize, line1: usize, col2: usize, line2: usize) ?[]const u8 {
+        if (line1 == line2) return this.slice_from_col_line_2(col1, line1, col2, line2);
+        const first_line = if (line1 <= line2) line1 else line2;
+        const first_col = if (line1 <= line2) col1 else col2;
+        return this.slice_to_eol(first_col, first_line);
+    }
+
+    pub fn slice_rest(this: @This(), col1: usize, line1: usize, col2: usize, line2: usize) ?[]const u8 {
+        if (line1 == line2) return null;
+        const first_line = if (line1 <= line2) line1 else line2;
+        const second_line = if (line1 <= line2) line2 else line1;
+        const second_col = if (line1 <= line2) col2 else col1;
+        return this.slice_from_col_line_2(0, first_line + 1, second_col, second_line);
     }
 
     pub fn slice_from_col_line_2(this: @This(), col1: usize, line1: usize, col2: usize, line2: usize) ?[]const u8 {
-        const line_start = if (line1 < line2) line1 else line2;
-        const line_end = if (line1 == line_start) line2 else line1;
-        const col_start = col: {
-            if (line_start == line_end) {
-                if (col1 == col2)
-                    return this.slice_from_col_line(col1, line1);
-                break :col if (col1 < col2) col1 else col2;
-            }
-            break :col if (line1 < line2) col1 else col2;
-        };
-        const col_end = if (col_start == col1) col2 else col1;
-        var lineiter = std.mem.split(u8, this.text, "\n");
-        var i: usize = 0;
-        var ptr_start: []const u8 = while (lineiter.next()) |line_slice| : (i += 1) {
-            if (i != line_start) continue;
-            if (line_slice.len <= col_start) return null;
-            if (line_start == line_end) {
-                if (line_slice.len <= col_end) return null;
-                return line_slice[col_start..col_end];
-            }
-            break lineiter.rest()[col_start..];
-        } else return null;
-        while (lineiter.next()) |line_slice| : (i += 1) {
-            if (i != line_end) continue;
-            if (line_slice.len <= col_end) return null;
-            return ptr_start[0..col_end];
-        }
-        return null;
+        if (line1 > this.lines or col1 > this.cols or line2 > this.lines or col2 > this.cols) return null;
+        const index1 = this.index_from_col_line(col1, line1);
+        const index2 = this.index_from_col_line(col2, line2);
+        return if (index1 < index2)
+            this.text[index1 .. index2 + 1]
+        else
+            this.text[index2 .. index1 + 1];
     }
 
     pub const HighlightIterator = struct {
