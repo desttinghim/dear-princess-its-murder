@@ -3,6 +3,16 @@ const std = @import("std");
 const zow4 = @import("zow4");
 const geom = zow4.geometry;
 
+pub const Highlight = struct {
+    const important: [][]const u8 = &.{};
+    pub var player: [][]const u8 = &.{};
+};
+
+fn sliceContainsSlice(container: []u8, slice: []u8) bool {
+    return @ptrToInt(slice.ptr) >= @ptrToInt(container.ptr) and
+        (@ptrToInt(slice.ptr) + slice.len) <= (@ptrToInt(container.ptr) + container.len);
+}
+
 pub const Document = struct {
     text: []const u8,
     cols: i32,
@@ -33,6 +43,69 @@ pub const Document = struct {
             .text = string,
             .cols = @intCast(i32, maxline),
             .lines = @intCast(i32, i),
+        };
+    }
+
+    pub fn slice_from_col_line(this: @This(), col: usize, line: usize) ?[]const u8 {
+        var lineiter = std.mem.split(u8, this.text, "\n");
+        var i: usize = 0;
+        while (lineiter.next()) |line_slice| : (i += 1) {
+            if (i != line) continue;
+            if (line_slice.len <= col) return null;
+            return line_slice[col .. col + 1];
+        }
+        return null;
+    }
+
+    pub fn slice_from_col_line_2(this: @This(), col1: usize, line1: usize, col2: usize, line2: usize) ?[]const u8 {
+        const line_start = if (line1 < line2) line1 else line2;
+        const line_end = if (line1 == line_start) line2 else line1;
+        const col_start = col: {
+            if (line_start == line_end) {
+                if (col1 == col2)
+                    return this.slice_from_col_line(col1, line1);
+                break :col if (col1 < col2) col1 else col2;
+            }
+            break :col if (line1 < line2) col1 else col2;
+        };
+        const col_end = if (col_start == col1) col2 else col1;
+        var lineiter = std.mem.split(u8, this.text, "\n");
+        var i: usize = 0;
+        var ptr_start: []const u8 = while (lineiter.next()) |line_slice| : (i += 1) {
+            if (i != line_start) continue;
+            if (line_slice.len <= col_start) return null;
+            if (line_start == line_end) {
+                if (line_slice.len <= col_end) return null;
+                return line_slice[col_start..col_end];
+            }
+            break lineiter.rest()[col_start..];
+        } else return null;
+        while (lineiter.next()) |line_slice| : (i += 1) {
+            if (i != line_end) continue;
+            if (line_slice.len <= col_end) return null;
+            return ptr_start[0..col_end];
+        }
+        return null;
+    }
+
+    pub const HighlightIterator = struct {
+        document: *const Document,
+        index: usize,
+        pub fn next(this: @This()) ?[]const u8 {
+            if (this.index >= Highlight.player.len) return null;
+            while (this.index < Highlight.player.len) : (this.index += 1) {
+                if (sliceContainsSlice(this.document.text, Highlight.player[this.index])) {
+                    return Highlight.player[this.index];
+                }
+            }
+        }
+    };
+
+    // Returns an iterator over every highlight in document, in the order the player highlighted them
+    pub fn highlight_iterator(this: @This()) HighlightIterator {
+        return HighlightIterator{
+            .document = &this,
+            .index = 0,
         };
     }
 };

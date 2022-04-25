@@ -21,23 +21,80 @@ desk: usize,
 hud: usize,
 dialog_box: ?usize,
 
+const HighlightState = union(enum) { hover, start: struct { line: usize, col: usize, handle: usize }, release };
+
 var grabbed: ?struct { handle: usize, diff: geom.Vec2 } = null;
+var highlight = false;
+var highlight_state: HighlightState = .hover;
 fn handle_grab(ctx: *ui.Context, node: Node, event: zow4.ui.EventData) ?Node {
-    const tag: []const u8 = @tagName(node.layout);
-    if (verbose) w4.trace(tag.ptr);
-    if (node.layout != .Anchor) return null;
-    if (!event.pointer.left) return null;
-    switch (node.layout) {
-        .Anchor => |anchor| {
-            // Store the anchor and
-            grabbed = .{
-                .handle = node.handle,
-                .diff = event.pointer.pos - geom.rect.top_left(anchor.margin),
-            };
-            ctx.bring_to_front(node.handle);
-        },
-        else => {},
+    if (!highlight) {
+        const tag: []const u8 = @tagName(node.layout);
+        if (verbose) w4.trace(tag.ptr);
+        if (node.layout != .Anchor) return null;
+        if (!event.pointer.left) return null;
+        switch (node.layout) {
+            .Anchor => |anchor| {
+                // Store the anchor and
+                grabbed = .{
+                    .handle = node.handle,
+                    .diff = event.pointer.pos - geom.rect.top_left(anchor.margin),
+                };
+                ctx.bring_to_front(node.handle);
+            },
+            else => {},
+        }
     }
+    return null;
+}
+
+fn toggle_highlight(_: *ui.Context, _: Node, _: zow4.ui.EventData) ?Node {
+    highlight = !highlight;
+    grabbed = null;
+    return null;
+}
+
+fn handle_highlight(ctx: *ui.Context, node: Node, event: zow4.ui.EventData) ?Node {
+    _ = ctx;
+    _ = node;
+    if (highlight) {
+        if (node.data == null) return null;
+        if (node.data.? != .Document) return null;
+        std.debug.assert(node.data.? == .Document);
+
+        const doc = node.data.?.Document.doc;
+
+        const state = highlight_state;
+        switch (state) {
+            .hover => {
+                if (event._type == .PointerPress) {
+                    w4.trace("start");
+                    const col = @intCast(usize, @divTrunc(event.pointer.pos[0] - node.bounds[0], 8));
+                    const line = @intCast(usize, @divTrunc(event.pointer.pos[1] - node.bounds[1], 8));
+                    if (doc.slice_from_col_line(col, line)) |ptr| {
+                        highlight_state = .{ .start = .{ .line = line, .col = col, .handle = node.handle } };
+                        w4.traceUtf8(ptr.ptr, ptr.len);
+                    }
+                }
+            },
+            .start => |histart| {
+                if (event._type == .PointerRelease) {
+                    if (node.handle != histart.handle) {
+                        return null;
+                    }
+                    const col = @intCast(usize, @divTrunc(event.pointer.pos[0] - node.bounds[0], 8));
+                    const line = @intCast(usize, @divTrunc(event.pointer.pos[1] - node.bounds[1], 8));
+                    if (doc.slice_from_col_line_2(histart.col, histart.line, col, line)) |ptr| {
+                        highlight_state = .hover;
+                        w4.traceUtf8(ptr.ptr, ptr.len);
+                    } else {
+                        w4.trace("couldn't get slice");
+                    }
+                }
+            },
+            .release => {},
+        }
+    }
+
     return null;
 }
 
@@ -113,6 +170,8 @@ pub fn create_doc(this: *@This(), doc: *const document.Document) !usize {
     // TODO: move this to the paper node. It will require functions for
     // querying children
     try this.ctx.listen(content, .PointerPress, handle_minify);
+    try this.ctx.listen(content, .PointerPress, handle_highlight);
+    try this.ctx.listen(content, .PointerRelease, handle_highlight);
 
     return content;
 }
@@ -149,13 +208,13 @@ pub fn init(runner: Runner) !@This() {
         .dialog_box = null,
         .hud = undefined,
     };
-    this.desk = try this.ctx.insert(null, Node.relative().dataValue(.{.Image = .{.style = 0x04, .bmp = &image.coffee_shop_bmp}}));
-    this.hud = try this.ctx.insert(null, Node.anchor(.{0,0,100,100},.{0,0,0,0}));
+    this.desk = try this.ctx.insert(null, Node.relative().dataValue(.{ .Image = .{ .style = 0x04, .bmp = &image.coffee_shop_bmp } }));
+    this.hud = try this.ctx.insert(null, Node.anchor(.{ 0, 0, 100, 100 }, .{ 0, 0, 0, 0 }));
     // _ = try this.create_dialog(.{ .style = 0x04, .bmp = &image.bubbles_bmp }, "Uh, welcome to the\ngame.\nI guess.");
-    var b = try this.ctx.insert(this.hud, Node.anchor(.{0,0,100,0},.{0, 0, 0, 16}));
+    var b = try this.ctx.insert(this.hud, Node.anchor(.{ 0, 0, 100, 0 }, .{ 0, 0, 0, 16 }));
     var button_list = try this.ctx.insert(b, Node.hlist());
-    var btn_highlight = try this.ctx.insert(button_list, Node.relative().dataValue(.{.Button = "H"}).capturePointer(true));
-    _ = btn_highlight;
+    var btn_highlight = try this.ctx.insert(button_list, Node.relative().dataValue(.{ .Button = "H" }).capturePointer(true));
+    _ = try this.ctx.listen(btn_highlight, .PointerClick, toggle_highlight);
 
     var doc = try this.create_doc(&document.intro_letter);
     var doc2 = try this.create_doc(&document.love_letter);
@@ -220,6 +279,17 @@ pub fn update(this: *@This()) void {
     }
 
     ui.update(&this.ctx);
+    if (highlight) {
+        const pos = zow4.input.mousepos();
+        w4.DRAW_COLORS.* = 0x04;
+        w4.rect(pos[0] - 2, pos[1] - 4, 4, 8);
+        if (highlight_state == .start) draw_highlight: {
+            const node = this.ctx.get_node(highlight_state.start.handle) orelse break :draw_highlight;
+            const col = @intCast(i32, highlight_state.start.col);
+            const line = @intCast(i32, highlight_state.start.line);
+            w4.rect(node.bounds[0] + col * 8, node.bounds[1] + line * 8, 8, 8);
+        }
+    }
     if (grabbed) |*grab| {
         if (this.ctx.get_node(grab.handle)) |*node| {
             const pos = zow4.input.mousepos() - grab.diff;
