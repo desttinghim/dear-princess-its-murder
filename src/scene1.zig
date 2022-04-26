@@ -274,14 +274,14 @@ pub fn update(this: *@This()) void {
     if (highlight) {
         const mousepos = zow4.input.mousepos();
         w4.DRAW_COLORS.* = 0x04;
-        w4.rect(mousepos[0] - 2, mousepos[1] - 4, 4, 8);
+        w4.rect(mousepos[0], mousepos[1] - 6, 1, 8);
         if (highlight_state == .start) draw_highlight: {
             const node = this.ctx.get_node(highlight_state.start.handle) orelse break :draw_highlight;
             const data = node.data orelse break :draw_highlight;
             if (data != .Document) break :draw_highlight;
             if (@reduce(.Or, mousepos < geom.rect.top_left(node.bounds))) break :draw_highlight;
             if (@reduce(.Or, mousepos > geom.rect.bottom_right(node.bounds))) break :draw_highlight;
-            const col = @intCast(usize, @divTrunc(mousepos[0] - node.bounds[0] + 4, 8));
+            const col = @intCast(usize, @divTrunc(mousepos[0] - node.bounds[0], 8));
             const line = @intCast(usize, @divTrunc(mousepos[1] - node.bounds[1], 8));
             if (highlight_state.start.textpos.line < line or (highlight_state.start.textpos.line == line and highlight_state.start.textpos.col <= col)) {
                 // The beginning is above, or to the left of the cursor
