@@ -137,6 +137,20 @@ pub const UI = union(enum) {
                     } else {
                         w4.DRAW_COLORS.* = 0x04;
                         doc.doc.draw(g.rect.top_left(node.bounds));
+                        var doc_iter = doc.doc.highlight_iterator();
+                        while (doc_iter.next()) |highlight| {
+                            // The beginning is above, or to the left of the cursor
+                            const draw_x = node.bounds[0] + @intCast(i32, highlight.region[0].col * 8);
+                            const draw_y = node.bounds[1] + @intCast(i32, highlight.region[0].line * 8);
+                            if (doc.doc.slice_first_line(highlight.region[0].col, highlight.region[0].line, highlight.region[1].col, highlight.region[1].line)) |ptr| {
+                                w4.DRAW_COLORS.* = 0x41;
+                                w4.textUtf8(ptr.ptr, ptr.len, draw_x, draw_y);
+                            }
+                            if (doc.doc.slice_rest(highlight.region[0].col, highlight.region[0].line, highlight.region[1].col, highlight.region[1].line)) |ptr| {
+                                w4.DRAW_COLORS.* = 0x41;
+                                w4.textUtf8(ptr.ptr, ptr.len, node.bounds[0], draw_y + 8);
+                            }
+                        }
                     }
                 },
                 .Image => |blit| {

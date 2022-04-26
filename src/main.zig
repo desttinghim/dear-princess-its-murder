@@ -3,6 +3,7 @@ const w4 = @import("wasm4");
 const zow4 = @import("zow4");
 
 const image = @import("image.zig");
+const document = @import("document.zig");
 const ui = @import("ui.zig");
 const SceneTitle = @import("scene_title.zig");
 var scene_title: SceneTitle = undefined;
@@ -39,19 +40,24 @@ export fn start() void {
     prng = std.rand.DefaultPrng.init(0);
     runner.rand = prng.random();
 
+    document.Highlight.init(fba.allocator()) catch |e| {
+        switch (e) {
+            error.OutOfMemory => zow4.mem.report_memory_usage(fba),
+        }
+        zow4.panic("Couldn't start scene1");
+    };
+
     scene_title = SceneTitle.init(runner) catch |e| {
         switch (e) {
             error.OutOfMemory => zow4.mem.report_memory_usage(fba),
         }
         zow4.panic("Couldn't start scene1");
-        unreachable;
     };
     scene1 = Scene1.init(runner) catch |e| {
         switch (e) {
             error.OutOfMemory => zow4.mem.report_memory_usage(fba),
         }
         zow4.panic("Couldn't start scene1");
-        unreachable;
     };
 
     if (verbose) w4.trace("[START] end");

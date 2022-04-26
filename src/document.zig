@@ -3,9 +3,33 @@ const std = @import("std");
 const zow4 = @import("zow4");
 const geom = zow4.geometry;
 
+/// A TextPosition stores a point in a document.
+pub const TextPosition = struct { index: u16, line: u8, col: u8 };
+
+pub const TextRegion = struct {
+    document: *const Document,
+    region: [2]TextPosition,
+};
+
+/// A singleton that manages player highlights
 pub const Highlight = struct {
-    const important: [][]const u8 = &.{};
-    pub var player: [][]const u8 = &.{};
+    const important: []TextRegion = &.{};
+    pub var player: []TextRegion = &.{};
+
+    var list: std.ArrayList(TextRegion) = undefined;
+
+    pub fn init(allocator: std.mem.Allocator) !void {
+        list = try std.ArrayList(TextRegion).initCapacity(allocator, 20);
+    }
+
+    pub fn deinit() void {
+        list.deinit();
+    }
+
+    pub fn add(new_highlight: TextRegion) !void {
+        try list.append(new_highlight);
+        // player = list.items;
+    }
 };
 
 fn sliceContainsSlice(container: []u8, slice: []u8) bool {
@@ -80,20 +104,20 @@ pub const Document = struct {
     pub fn slice_from_col_line(this: @This(), col: usize, line: usize) ?[]const u8 {
         if (col > this.cols or line > this.lines) return null;
         const index = this.index_from_col_line(col, line);
-        return this.text[index .. index];
+        return this.text[index..index];
     }
 
     pub fn slice_to_eol(this: @This(), col: usize, line: usize) ?[]const u8 {
         if (col > this.cols or line > this.lines) return null;
         const index = this.index_from_col_line(col, line);
-        if (line + 1 >= this.lines) return this.text[index .. ];
+        if (line + 1 >= this.lines) return this.text[index..];
         const index2 = this.index_from_line(line + 1);
-        return this.text[index .. index2];
+        return this.text[index..index2];
     }
 
     pub fn slice_from_eol(this: @This(), col: usize, line: usize) ?[]const u8 {
         if (col > this.cols or line > this.lines) return null;
-        const index = if (line == 0 ) 0 else this.index_from_line(line - 1);
+        const index = if (line == 0) 0 else this.index_from_line(line - 1);
         const index2 = this.index_from_line(line);
         return this.text[index .. index2 + col];
     }
@@ -118,28 +142,45 @@ pub const Document = struct {
         const index1 = this.index_from_col_line(col1, line1);
         const index2 = this.index_from_col_line(col2, line2);
         return if (index1 < index2)
-            this.text[index1 .. index2]
+            this.text[index1..index2]
         else
-            this.text[index2 .. index1];
+            this.text[index2..index1];
+    }
+
+    pub fn position(this: @This(), col: usize, line: usize) TextPosition {
+        const index = @truncate(u16, this.index_from_col_line(col, line));
+        return .{ .index = index, .col = @truncate(u8, col), .line = @truncate(u8, line) };
+    }
+
+    pub fn region(this: *const @This(), pos1: TextPosition, pos2: TextPosition) TextRegion {
+        const first_pos = if (pos1.index <= pos2.index) pos1 else pos2;
+        const second_pos = if (first_pos.index == pos1.index) pos2 else pos1;
+        return .{
+            .document = this,
+            .region = .{ first_pos, second_pos },
+        };
     }
 
     pub const HighlightIterator = struct {
         document: *const Document,
         index: usize,
-        pub fn next(this: @This()) ?[]const u8 {
-            if (this.index >= Highlight.player.len) return null;
-            while (this.index < Highlight.player.len) : (this.index += 1) {
-                if (sliceContainsSlice(this.document.text, Highlight.player[this.index])) {
-                    return Highlight.player[this.index];
+        pub fn next(this: *@This()) ?TextRegion {
+            if (this.index >= Highlight.list.items.len) return null;
+            while (this.index < Highlight.list.items.len) : (this.index += 1) {
+                if (this.document == Highlight.list.items[this.index].document) {
+                    const index = this.index;
+                    this.index += 1;
+                    return Highlight.list.items[index];
                 }
             }
+            return null;
         }
     };
 
     // Returns an iterator over every highlight in document, in the order the player highlighted them
-    pub fn highlight_iterator(this: @This()) HighlightIterator {
+    pub fn highlight_iterator(this: *const @This()) HighlightIterator {
         return HighlightIterator{
-            .document = &this,
+            .document = this,
             .index = 0,
         };
     }

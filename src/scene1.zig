@@ -21,7 +21,7 @@ desk: usize,
 hud: usize,
 dialog_box: ?usize,
 
-const HighlightState = union(enum) { hover, start: struct { line: usize, col: usize, handle: usize }, release };
+const HighlightState = union(enum) { hover, start: struct { textpos: document.TextPosition, handle: usize }, release };
 
 var grabbed: ?struct { handle: usize, diff: geom.Vec2 } = null;
 var highlight = false;
@@ -69,9 +69,8 @@ fn handle_highlight(ctx: *ui.Context, node: Node, event: zow4.ui.EventData) ?Nod
         switch (state) {
             .hover => {
                 if (event._type == .PointerPress) {
-                    if (doc.slice_from_col_line(col, line)) |_| {
-                        highlight_state = .{ .start = .{ .line = line, .col = col, .handle = node.handle } };
-                    }
+                    const pos = doc.position(col, line);
+                    highlight_state = .{ .start = .{ .textpos = pos, .handle = node.handle } };
                 }
             },
             .start => |histart| {
@@ -79,9 +78,9 @@ fn handle_highlight(ctx: *ui.Context, node: Node, event: zow4.ui.EventData) ?Nod
                     if (node.handle != histart.handle) {
                         return null;
                     }
-                    if (doc.slice_from_col_line_2(histart.col, histart.line, col, line)) |_| {
-                        highlight_state = .hover;
-                    }
+                    const pos = doc.position(col, line);
+                    document.Highlight.add(doc.region(pos, histart.textpos)) catch unreachable;
+                    highlight_state = .hover;
                 }
             },
             .release => {},
@@ -93,6 +92,7 @@ fn handle_highlight(ctx: *ui.Context, node: Node, event: zow4.ui.EventData) ?Nod
 
 fn handle_minify(ctx: *ui.Context, node: Node, event: zow4.ui.EventData) ?Node {
     if (!event.pointer.right) return null;
+    if (highlight) return null;
     return toggle_minify(ctx, node);
 }
 
@@ -203,8 +203,7 @@ pub fn init(runner: Runner) !@This() {
     };
     this.desk = try this.ctx.insert(null, Node.relative().dataValue(.{ .Image = .{ .style = 0x04, .bmp = &image.coffee_shop_bmp } }));
     this.hud = try this.ctx.insert(null, Node.anchor(.{ 0, 0, 100, 100 }, .{ 0, 0, 0, 0 }));
-    // _ = try this.create_dialog(.{ .style = 0x04, .bmp = &image.bubbles_bmp }, "Uh, welcome to the\ngame.\nI guess.");
-    var b = try this.ctx.insert(this.hud, Node.anchor(.{ 0, 0, 100, 0 }, .{ 0, 0, 0, 16 }));
+    var b = try this.ctx.insert(this.hud, Node.anchor(.{ 0, 0, 100, 0 }, .{ 0, 0, 0, 14 }));
     var button_list = try this.ctx.insert(b, Node.hlist());
     var btn_highlight = try this.ctx.insert(button_list, Node.relative().dataValue(.{ .Button = "H" }).capturePointer(true));
     _ = try this.ctx.listen(btn_highlight, .PointerClick, toggle_highlight);
@@ -284,15 +283,15 @@ pub fn update(this: *@This()) void {
             if (@reduce(.Or, mousepos > geom.rect.bottom_right(node.bounds))) break :draw_highlight;
             const col = @intCast(usize, @divTrunc(mousepos[0] - node.bounds[0] + 4, 8));
             const line = @intCast(usize, @divTrunc(mousepos[1] - node.bounds[1], 8));
-            if (highlight_state.start.line < line or (highlight_state.start.line == line and highlight_state.start.col <= col)) {
+            if (highlight_state.start.textpos.line < line or (highlight_state.start.textpos.line == line and highlight_state.start.textpos.col <= col)) {
                 // The beginning is above, or to the left of the cursor
-                const draw_x = node.bounds[0] + @intCast(i32, highlight_state.start.col * 8);
-                const draw_y = node.bounds[1] + @intCast(i32, highlight_state.start.line * 8);
-                if (data.Document.doc.slice_first_line(highlight_state.start.col, highlight_state.start.line, col, line)) |ptr| {
+                const draw_x = node.bounds[0] + @intCast(i32, highlight_state.start.textpos.col * 8);
+                const draw_y = node.bounds[1] + @intCast(i32, highlight_state.start.textpos.line * 8);
+                if (data.Document.doc.slice_first_line(highlight_state.start.textpos.col, highlight_state.start.textpos.line, col, line)) |ptr| {
                     w4.DRAW_COLORS.* = 0x41;
                     w4.textUtf8(ptr.ptr, ptr.len, draw_x, draw_y);
                 }
-                if (data.Document.doc.slice_rest(highlight_state.start.col, highlight_state.start.line, col, line)) |ptr| {
+                if (data.Document.doc.slice_rest(highlight_state.start.textpos.col, highlight_state.start.textpos.line, col, line)) |ptr| {
                     w4.DRAW_COLORS.* = 0x41;
                     w4.textUtf8(ptr.ptr, ptr.len, node.bounds[0], draw_y + 8);
                 }
@@ -300,11 +299,11 @@ pub fn update(this: *@This()) void {
                 // The beginning is below, or to the right of the cursor
                 const draw_x = node.bounds[0] + @intCast(i32, col * 8);
                 const draw_y = node.bounds[1] + @intCast(i32, line * 8);
-                if (data.Document.doc.slice_first_line(highlight_state.start.col, highlight_state.start.line, col, line)) |ptr| {
+                if (data.Document.doc.slice_first_line(highlight_state.start.textpos.col, highlight_state.start.textpos.line, col, line)) |ptr| {
                     w4.DRAW_COLORS.* = 0x41;
                     w4.textUtf8(ptr.ptr, ptr.len, draw_x, draw_y);
                 }
-                if (data.Document.doc.slice_rest(highlight_state.start.col, highlight_state.start.line, col, line)) |ptr| {
+                if (data.Document.doc.slice_rest(highlight_state.start.textpos.col, highlight_state.start.textpos.line, col, line)) |ptr| {
                     w4.DRAW_COLORS.* = 0x41;
                     w4.textUtf8(ptr.ptr, ptr.len, node.bounds[0], draw_y + 8);
                 }
