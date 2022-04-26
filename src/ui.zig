@@ -12,7 +12,7 @@ pub const Context = ui.Context(UI);
 pub const Node = Context.Node;
 
 pub fn init(alloc: std.mem.Allocator) !Context {
-    return Context.init(alloc, UI.size, UI.update, UI.paint);
+    return Context.init(alloc, UI.size, UI.paint);
 }
 
 pub fn print_debug(this: Node) void {
@@ -21,8 +21,8 @@ pub fn print_debug(this: Node) void {
     w4.tracef("type %s, data %s, children %d", typename, dataname, this.children);
 }
 
-pub fn update(ui_ctx: *Context) void {
-    ui_ctx.update(.{
+pub fn get_inputs() ui.InputData {
+    return .{
         .pointer = .{
             .left = input.mouse(.left),
             .right = input.mouse(.right),
@@ -37,16 +37,7 @@ pub fn update(ui_ctx: *Context) void {
             .accept = input.btn(.one, .x),
             .reject = input.btn(.one, .z),
         },
-    });
-    ui_ctx.layout(.{ 0, 0, 160, 160 });
-    if (w4.SYSTEM_FLAGS.* & w4.SYSTEM_PRESERVE_FRAMEBUFFER == 0) {
-        // If the framebuffer is not being preserved, just draw
-        ui_ctx.paint();
-    } else if (!g.vec.isZero(input.mousediff()) or input.mouse(.any)) {
-        w4.DRAW_COLORS.* = 0x1;
-        w4.rect(0, 0, 160, 160);
-        ui_ctx.paint();
-    }
+    };
 }
 
 pub const UI = union(enum) {
@@ -96,18 +87,6 @@ pub const UI = union(enum) {
                 };
             },
         }
-    }
-
-    pub fn update(node: Node) Node {
-        if (node.data) |data| {
-            switch (data) {
-                .Label => {},
-                .Document => {},
-                .Image => {},
-                .Button => {},
-            }
-        }
-        return node;
     }
 
     pub fn paint(node: Node) void {
