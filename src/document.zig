@@ -8,13 +8,30 @@ pub const TextPosition = struct { index: u16, line: u8, col: u8 };
 
 pub const TextRegion = struct {
     document: *const Document,
+    /// NOTE: Assumed to be in order
     region: [2]TextPosition,
+
+    pub fn contains(this: @This(), other: @This()) bool {
+        return (this.document == other.document and
+            this.region[0].line <= other.region[0].line and
+            this.region[0].col <= other.region[0].col and
+            this.region[1].line >= other.region[1].line and
+            this.region[1].col >= other.region[1].col);
+    }
 };
 
 /// A singleton that manages player highlights
 pub const Highlight = struct {
-    const important: []TextRegion = &.{};
-    pub var player: []TextRegion = &.{};
+    pub const important: []const TextRegion = &.{
+        .{
+            .document = &pinks_ledger,
+            .region = .{ pinks_ledger.position(11, 3), pinks_ledger.position(15, 3) },
+        },
+        .{
+            .document = &eviction_notice,
+            .region = .{ eviction_notice.position(9, 7), eviction_notice.position(13, 7) },
+        },
+    };
 
     var list: std.ArrayList(TextRegion) = undefined;
 
@@ -28,7 +45,24 @@ pub const Highlight = struct {
 
     pub fn add(new_highlight: TextRegion) !void {
         try list.append(new_highlight);
-        // player = list.items;
+    }
+
+    pub fn has_found(which: usize) bool {
+        const imp = important[which];
+        for (list.items) |highlight| {
+            if (highlight.contains(imp)) return true;
+        }
+        return false;
+    }
+
+    pub fn important_found() usize {
+        var found: usize = 0;
+        for (important) |imp| {
+            for (list.items) |highlight| {
+                if (highlight.contains(imp)) found += 1;
+            }
+        }
+        return found;
     }
 };
 
@@ -148,6 +182,7 @@ pub const Document = struct {
     }
 
     pub fn position(this: @This(), col: usize, line: usize) TextPosition {
+        @setEvalBranchQuota(4000);
         const index = @truncate(u16, this.index_from_col_line(col, line));
         return .{ .index = index, .col = @truncate(u8, col), .line = @truncate(u8, line) };
     }

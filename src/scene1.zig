@@ -213,7 +213,7 @@ pub fn init(runner: Runner) !@This() {
     this.hud = try this.ctx.insert(null, Node.anchor(.{ 0, 0, 100, 100 }, .{ 0, 0, 0, 0 }));
     var b = try this.ctx.insert(this.hud, Node.anchor(.{ 0, 0, 100, 0 }, .{ 0, 0, 0, 14 }));
     var button_list = try this.ctx.insert(b, Node.hlist());
-    var btn_highlight = try this.ctx.insert(button_list, Node.relative().dataValue(.{ .Button = "H" }).capturePointer(true));
+    var btn_highlight = try this.ctx.insert(button_list, Node.relative().dataValue(.{ .Button = "Mark" }).capturePointer(true));
     try this.listen(btn_highlight, .PointerClick, toggle_highlight);
 
     var doc = try this.create_doc(&document.intro_letter);
@@ -267,13 +267,16 @@ var frame: @Frame(scene_script) = undefined;
 var frame_ptr: ?anyframe = null;
 
 pub fn update(this: *@This()) void {
-    if (frame_ptr == null and !started) {
+    const important_found = document.Highlight.important_found();
+    if (frame_ptr == null and !started and important_found > 1) {
         started = true;
         frame = async scene_script(this);
         frame_ptr = &frame;
+        highlight = false;
     }
     if (zow4.input.btnp(.one, .z)) {
         this.ctx.print_debug(this.allocator, log);
+         document.Highlight.add(document.Highlight.important[1]) catch unreachable;
     }
 
     const inputs = ui.get_inputs();
