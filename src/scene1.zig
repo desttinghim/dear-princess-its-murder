@@ -3,6 +3,7 @@ const w4 = @import("wasm4");
 const zow4 = @import("zow4");
 
 const document = @import("document.zig");
+const dialog = @import("dialog.zig");
 const image = @import("image.zig");
 
 const Runner = @import("main.zig").Runner;
@@ -21,6 +22,9 @@ ctx: ui.Context,
 desk: usize,
 hud: usize,
 dialog_box: ?usize,
+dialog: ?dialog.DialogIterator,
+intro_shown: bool = false,
+clue_spotted_shown: bool = false,
 
 const Self = @This();
 const Listener = struct {
@@ -132,8 +136,12 @@ fn toggle_minify(this: *@This(), node: ui.Node) void {
 
 fn handle_dialog(this: *@This(), event: zow4.ui.EventData) void {
     this.ctx.remove(event.current);
-    if (frame_ptr) |f| {
-        resume f;
+    if (this.dialog) |*dopt| {
+        if (dopt.next()) |d| {
+            _ = this.create_dialog(d.portrait, d.text) catch unreachable;
+        } else {
+            this.dialog = null;
+        }
     }
 }
 
@@ -172,7 +180,7 @@ pub fn create_doc(this: *@This(), doc: *const document.Document) !usize {
     return content;
 }
 
-pub fn create_dialog(this: *@This(), img: zow4.draw.Blit, text: []const u8) !usize {
+pub fn create_dialog(this: *@This(), img_opt: ?zow4.draw.Blit, text: []const u8) !usize {
     if (this.dialog_box) |handle| {
         this.ctx.remove(handle);
     }
@@ -183,17 +191,19 @@ pub fn create_dialog(this: *@This(), img: zow4.draw.Blit, text: []const u8) !usi
     ).capturePointer(true));
     try this.listen(this.dialog_box.?, .PointerClick, handle_dialog);
     // Positions portrait above the dialog
-    const portrait_box = try this.ctx.insert(this.dialog_box, Node.anchor(.{ 0, 0, 0, 0 }, .{ 0, -36, 36, -2 }));
     const content_box = try this.ctx.insert(this.dialog_box, Node.anchor(.{ 0, 0, 100, 100 }, .{ 2, 2, -2, -2 }).hasBackground(true).capturePointer(true).eventFilter(.Pass));
 
-    _ = try this.ctx.insert(portrait_box, Node.fill().dataValue(.{ .Image = img }).hasBackground(true));
+    if (img_opt) |img| {
+        const portrait_box = try this.ctx.insert(this.dialog_box, Node.anchor(.{ 0, 0, 0, 0 }, .{ 2, -img.bmp.height - 4, img.bmp.width + 4, -2 }));
+        _ = try this.ctx.insert(portrait_box, Node.fill().dataValue(.{ .Image = img }).hasBackground(true));
+    }
     _ = try this.ctx.insert(content_box, Node.fill().dataValue(.{ .Label = text }));
 
     return content_box;
 }
 
 fn listen(this: *@This(), handle: usize, event: zow4.ui.Event, callback: fn (*@This(), zow4.ui.EventData) void) !void {
-    try this.listeners.append(.{.handle = handle, .event = event, .callback = callback});
+    try this.listeners.append(.{ .handle = handle, .event = event, .callback = callback });
 }
 
 pub fn init(runner: Runner) !@This() {
@@ -206,6 +216,7 @@ pub fn init(runner: Runner) !@This() {
         .ctx = ctx,
         .desk = undefined,
         .dialog_box = null,
+        .dialog = null,
         .hud = undefined,
         .listeners = std.ArrayList(Listener).init(alloc),
     };
@@ -235,48 +246,21 @@ pub fn init(runner: Runner) !@This() {
     return this;
 }
 
-fn scene_script(this: *@This()) !void {
-    const messages = .{
-        \\Uh, welcome to the
-        \\game I guess.
-        ,
-        \\It's a work in
-        \\progress but you
-        \\can take a look
-        \\around.
-        ,
-        \\Anyway, I've got to
-        \\head out now. Say
-        \\hi to Pinks for me!
-        ,
-    };
-    _ = try this.create_dialog(.{ .style = 0x04, .bmp = &image.bubbles_bmp }, messages[0]);
-    suspend {}
-    _ = try this.create_dialog(.{ .style = 0x04, .bmp = &image.bubbles_bmp }, messages[1]);
-    suspend {}
-    _ = try this.create_dialog(.{ .style = 0x04, .bmp = &image.bubbles_bmp }, messages[2]);
-    frame_ptr = null;
-}
-
-fn log(string: []const u8) void {
-    w4.traceUtf8(string.ptr, string.len);
-}
-
-var started = false;
-var frame: @Frame(scene_script) = undefined;
-var frame_ptr: ?anyframe = null;
-
-pub fn update(this: *@This()) void {
-    const important_found = document.Highlight.important_found();
-    if (frame_ptr == null and !started and important_found > 1) {
-        started = true;
-        frame = async scene_script(this);
-        frame_ptr = &frame;
+pub fn update(this: *@This()) !void {
+    if (!this.intro_shown and this.dialog == null) {
+        this.dialog = dialog.get_dialog(&dialog.intro);
+        const d = this.dialog.?.next() orelse unreachable;
+        _ = try this.create_dialog(d.portrait, d.text);
+        this.intro_shown = true;
         highlight = false;
     }
-    if (zow4.input.btnp(.one, .z)) {
-        this.ctx.print_debug(this.allocator, log);
-         document.Highlight.add(document.Highlight.important[1]) catch unreachable;
+    const important_found = document.Highlight.important_found();
+    if (!this.clue_spotted_shown and important_found > 1 and this.dialog == null) {
+        this.dialog = dialog.get_dialog(&dialog.clue_spotted);
+        const d = this.dialog.?.next() orelse unreachable;
+        _ = try this.create_dialog(d.portrait, d.text);
+        this.clue_spotted_shown = true;
+        highlight = false;
     }
 
     const inputs = ui.get_inputs();

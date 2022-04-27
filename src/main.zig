@@ -71,7 +71,7 @@ export fn update() void {
             scene_title.update();
         },
         .Scene1 => {
-            scene1.update();
+            scene1.update() catch unreachable;
         },
     }
 

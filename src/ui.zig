@@ -25,7 +25,7 @@ pub fn get_inputs() ui.InputData {
     return .{
         .pointer = .{
             .left = input.mouse(.left),
-            .right = input.mouse(.right),
+            .right = input.mouse(.middle) or input.mouse(.right),
             .middle = input.mouse(.middle),
             .pos = input.mousepos(),
         },
