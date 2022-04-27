@@ -145,7 +145,7 @@ pub fn create_doc(this: *@This(), doc: *const document.Document) !usize {
     const rand = this.rand.intRangeLessThanBiased;
     const offset = geom.Vec2{ rand(i32, -40, 40), rand(i32, -40, 40) };
     const pos = (geom.Vec2{ 80, 80 }) - @divTrunc(size, geom.Vec2{ 2, 2 }) + offset;
-    const floatnode = Node.anchor(.{ 0, 0, 0, 0 }, .{ pos[0], pos[1], pos[0] + size[0], pos[1] + size[1] });
+    const floatnode = Node.anchor(.{ 0, 0, 0, 0 }, .{ pos[0], pos[1], pos[0] + size[0], pos[1] + size[1] }).capturePointer(true);
     var float = try this.ctx.insert(this.desk, floatnode);
     try this.listen(float, .PointerPress, handle_grab);
 
@@ -180,7 +180,7 @@ pub fn create_dialog(this: *@This(), img: zow4.draw.Blit, text: []const u8) !usi
     this.dialog_box = try this.ctx.insert(this.hud, Node.anchor(
         .{ 0, 100, 100, 100 },
         .{ 2, -40, -2, -2 },
-    ));
+    ).capturePointer(true));
     try this.listen(this.dialog_box.?, .PointerClick, handle_dialog);
     // Positions portrait above the dialog
     const portrait_box = try this.ctx.insert(this.dialog_box, Node.anchor(.{ 0, 0, 0, 0 }, .{ 0, -36, 36, -2 }));
@@ -267,11 +267,11 @@ var frame: @Frame(scene_script) = undefined;
 var frame_ptr: ?anyframe = null;
 
 pub fn update(this: *@This()) void {
-    // if (frame_ptr == null and !started) {
-    //     started = true;
-    //     frame = async scene_script(this);
-    //     frame_ptr = &frame;
-    // }
+    if (frame_ptr == null and !started) {
+        started = true;
+        frame = async scene_script(this);
+        frame_ptr = &frame;
+    }
     if (zow4.input.btnp(.one, .z)) {
         this.ctx.print_debug(this.allocator, log);
     }
