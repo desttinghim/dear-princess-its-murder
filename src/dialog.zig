@@ -28,7 +28,7 @@ pub fn get_dialog(dialog: []const Message) DialogIterator {
 
 pub const Message = struct {
     portrait: ?zow4.draw.Blit,
-    side: enum {left, center, right} = .right,
+    side: enum { left, center, right } = .right,
     text: []const u8,
 };
 
@@ -59,20 +59,20 @@ pub const intro = [_]Message{
     },
     .{
         .portrait = null,
-        .text =
+        .text = 
         \\...
         ,
     },
     .{
         .portrait = .{ .style = 0x04, .bmp = &image.pinks_bmp },
-        .text =
+        .text = 
         \\Where's Bubbles off
         \\to in such a hurry?
         ,
     },
     .{
-        .portrait = null,
-        .text =
+        .portrait = .{ .style = 0x04, .bmp = &image.sparkles_bmp },
+        .text = 
         \\Work, I imagine.
         \\Not all of us are
         \\self-employed.
@@ -80,7 +80,7 @@ pub const intro = [_]Message{
     },
     .{
         .portrait = .{ .style = 0x04, .bmp = &image.pinks_bmp },
-        .text =
+        .text = 
         \\Sounds awfully
         \\inconvenient...
         \\Would you mind
@@ -88,12 +88,52 @@ pub const intro = [_]Message{
         ,
     },
     .{
-        .portrait = null,
-        .text =
-        \\Yes, but I get the
-        \\feeling you'll ask
+        .portrait = .{ .style = 0x04, .bmp = &image.sparkles_bmp },
+        .text = 
+        \\I want to say no
+        \\but you'll ask me
         \\anyway. What do
         \\you want?
+        ,
+    },
+    .{
+        .portrait = .{ .style = 0x04, .bmp = &image.pinks_bmp },
+        .text = 
+        \\Great! I've gotten
+        \\an odd letter from
+        \\my landlord. Super
+        \\weird.
+        ,
+    },
+    .{
+        .portrait = .{ .style = 0x04, .bmp = &image.sparkles_bmp },
+        .text = 
+        \\Go on.
+        ,
+    },
+    .{
+        .portrait = .{ .style = 0x04, .bmp = &image.pinks_bmp },
+        .text = 
+        \\He's saying he'll
+        \\evict my business
+        \\if I don't pay
+        \\rent...
+        ,
+    },
+    .{
+        .portrait = .{ .style = 0x04, .bmp = &image.pinks_bmp },
+        .text = 
+        \\But I have payed
+        \\rent! See?
+        ,
+    },
+    .{
+        .portrait = null,
+        .text = 
+        \\[ Click mark and
+        \\highlight the word
+        \\'rent' in both
+        \\documents ]
         ,
     },
 };
@@ -101,14 +141,14 @@ pub const intro = [_]Message{
 pub const clue_spotted = [_]Message{
     .{
         .portrait = .{ .style = 0x04, .bmp = &image.pinks_bmp },
-        .text =
+        .text = 
         \\See? It doesn't
         \\make any sense.
         ,
     },
     .{
         .portrait = .{ .style = 0x04, .bmp = &image.pinks_bmp },
-        .text =
+        .text = 
         \\It's not like my
         \\landlord to be rude
         \\either.

@@ -317,23 +317,6 @@ pub const intro_letter = Document.fromText(
     \\ - Sunshine
 );
 
-pub const love_letter = Document.fromText(
-    \\Hey,
-    \\
-    \\ I think you're
-    \\really  cool and
-    \\I'd like to get
-    \\to know you better.
-    \\
-    \\ I just can't stop
-    \\thinking about your
-    \\curly hair, cute
-    \\horns, and yummy
-    \\cinnamon buns!
-    \\
-    \\ -
-);
-
 pub const eviction_notice = Document.fromText(
     \\Dear Pinks Baker,
     \\
@@ -351,14 +334,17 @@ pub const eviction_notice = Document.fromText(
 pub const pinks_ledger = pinks: {
     const data = .{
         .{ 0, "2/2", "Coffee", 100 },
-        .{ 1, "2/8", "Rent", 700 },
+        .{ 1, "2/7", "Flour", 100 },
+        .{ 2, "2/8", "Rent", 700 },
+        .{ 3, "2/10", "Coffee", 100 },
     };
     const format_str = "\n{:>3}|{s:^6}|{s:<7}|{:>6}g" ** data.len;
     const new_fmt =
+        \\----|Business Expense|----
         \\Ln | Date | Desc. | Amount
         \\---+------+-------+-------
     ++ format_str;
-    var new_data = data[0] ++ data[1];
+    var new_data = data[0] ++ data[1] ++ data[2] ++ data[3];
     const ledger = Document.fromText(std.fmt.comptimePrint(new_fmt, new_data));
     break :pinks ledger;
 };

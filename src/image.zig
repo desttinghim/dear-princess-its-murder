@@ -14,3 +14,4 @@ pub const coffee_shop_bmp = zow4.draw.load_bitmap(@embedFile("../assets/coffee-s
 
 pub const bubbles_bmp = zow4.draw.load_bitmap(@embedFile("../assets/bubbles.bmp")) catch @compileError("bubbles");
 pub const pinks_bmp = zow4.draw.load_bitmap(@embedFile("../assets/pinks.bmp")) catch @compileError("pinks");
+pub const sparkles_bmp = zow4.draw.load_bitmap(@embedFile("../assets/sparkles.bmp")) catch @compileError("sparkles");

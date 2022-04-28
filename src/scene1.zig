@@ -228,7 +228,6 @@ pub fn init(runner: Runner) !@This() {
     try this.listen(btn_highlight, .PointerClick, toggle_highlight);
 
     var doc = try this.create_doc(&document.intro_letter);
-    var doc2 = try this.create_doc(&document.love_letter);
     var doc3 = try this.create_doc(&document.controls);
     var doc4 = try this.create_doc(&document.pinks_ledger);
     var doc5 = try this.create_doc(&document.eviction_notice);
@@ -237,12 +236,10 @@ pub fn init(runner: Runner) !@This() {
     }
 
     _ = doc;
-    _ = doc2;
     _ = doc3;
     _ = doc4;
     _ = doc5;
 
-    w4.trace("end of init");
     return this;
 }
 
