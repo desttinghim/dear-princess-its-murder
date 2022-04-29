@@ -31,27 +31,17 @@ pub fn build(b: *std.build.Builder) !void {
     const dearPrincess_opt = try z4.addWasmOpt(b, "dear-princess", dearPrincess);
     _ = dearPrincess_opt;
 
-    const bundler = b.addExecutable("bundler", "tools/bundle.zig");
-    {
-        bundler.setTarget(b.standardTargetOptions(.{}));
-        bundler.install();
-    }
-    const run_bundler = bundler.run();
-    run_bundler.step.dependOn(b.getInstallStep());
-    {
-        run_bundler.addFileSourceArg(.{.path = "lib/wasm4/runtimes/native/build/wasm4"});
-        run_bundler.addArtifactArg(dearPrincess);
-        // const bundled_exe_path = b.getInstallPath(.bin, "wasm4-linux");
-        run_bundler.addArg(b.getInstallPath(.bin, "wasm4-linux"));
-    }
+    const exec_path = try std.fs.path.join(b.allocator, &[_][]const u8{ "lib", "wasm4", "runtimes", "native", "build", "wasm4" });
+    const run_bundler = z4.BundleStep.create(b, .{
+        .exec_path = .{ .path = exec_path },
+        .cart_path = dearPrincess.getOutputSource(),
+        .output_name = "dear-princess",
+        .title = "Dear Princess",
+    });
+    run_bundler.step.dependOn(&dearPrincess.step);
 
     const native = b.step("bundle", "Bundle cart into native executable");
-    {
-        native.dependOn(&run_bundler.step);
-    }
-
-    // const run_native = run_bundler.run();
-    // run_native.dependOn(&run_bundler.step);
+    native.dependOn(&run_bundler.step);
 }
 
 pub fn addWasm4Cart(b: *std.build.Builder, name: []const u8, path: []const u8) !*std.build.LibExeObjStep {
@@ -74,4 +64,3 @@ pub fn addWasm4Cart(b: *std.build.Builder, name: []const u8, path: []const u8) !
 
     return lib;
 }
-
