@@ -26,6 +26,8 @@ dialog: ?dialog.DialogIterator,
 intro_shown: bool = false,
 clue_spotted_shown: bool = false,
 
+docs: [4]?usize,
+
 const Self = @This();
 const Listener = struct {
     handle: usize,
@@ -127,7 +129,7 @@ fn toggle_minify(this: *@This(), node: ui.Node) void {
                 };
                 ancestor_update.layout.Anchor.margin = .{ pos[0], pos[1], pos[0] + size[0], pos[1] + size[1] };
                 _ = this.ctx.set_node(ancestor_update);
-                this.ctx.bring_to_front(ancestor.handle);
+                if (!is_mini) this.ctx.bring_to_front(ancestor.handle);
             }
             _ = this.ctx.set_node(new_node);
         }
@@ -159,7 +161,7 @@ pub fn create_doc(this: *@This(), doc: *const document.Document) !usize {
 
     // Capture events and pass them up
     const papernode = Node
-        .anchor(.{ 0, 0, 100, 100 }, .{ pad, pad, pad, pad })
+        .anchor(.{ 0, 0, 100, 100 }, .{ pad, pad, -pad, -pad })
         .hasBackground(true)
         .capturePointer(true)
         .eventFilter(.Pass);
@@ -176,6 +178,14 @@ pub fn create_doc(this: *@This(), doc: *const document.Document) !usize {
     try this.listen(content, .PointerPress, handle_minify);
     try this.listen(content, .PointerPress, handle_highlight);
     try this.listen(content, .PointerRelease, handle_highlight);
+
+    // const float_btns_container = Node
+        // .anchor(.{ 0, 100, 100, 100 }, .{ pad, -pad - 16, -pad, -pad })
+        // .eventFilter(.Pass);
+    // const float_btns = try this.ctx.insert(float, float_btns_container);
+
+    // const done_btn = try this.ctx.insert(float_btns, Node.relative().dataValue(.{ .Button = "Done" }).capturePointer(true).eventFilter(.Pass));
+    // _ = done_btn;
 
     return content;
 }
@@ -219,6 +229,7 @@ pub fn init(runner: Runner) !@This() {
         .dialog = null,
         .hud = undefined,
         .listeners = std.ArrayList(Listener).init(alloc),
+        .docs = .{null} ** 4,
     };
     this.desk = try this.ctx.insert(null, Node.relative().dataValue(.{ .Image = .{ .style = 0x04, .bmp = &image.coffee_shop_bmp } }));
     this.hud = try this.ctx.insert(null, Node.anchor(.{ 0, 0, 100, 100 }, .{ 0, 0, 0, 0 }));
@@ -227,32 +238,43 @@ pub fn init(runner: Runner) !@This() {
     var btn_highlight = try this.ctx.insert(button_list, Node.relative().dataValue(.{ .Button = "Mark" }).capturePointer(true));
     try this.listen(btn_highlight, .PointerClick, toggle_highlight);
 
-    var doc = try this.create_doc(&document.intro_letter);
-    var doc3 = try this.create_doc(&document.controls);
-    var doc4 = try this.create_doc(&document.pinks_ledger);
-    var doc5 = try this.create_doc(&document.eviction_notice);
-    if (this.ctx.get_node(doc3)) |controls| {
+    this.docs[0] = try this.create_doc(&document.intro_letter);
+    this.docs[1] = try this.create_doc(&document.controls);
+
+    if (this.ctx.get_node(this.docs[0].?)) |intro| {
+        toggle_minify(&this, intro);
+    }
+    if (this.ctx.get_node(this.docs[1].?)) |controls| {
         toggle_minify(&this, controls);
     }
 
-    _ = doc;
-    _ = doc3;
-    _ = doc4;
-    _ = doc5;
-
+    // try document.Highlight.add(document.Highlight.important[0]);
+    // try document.Highlight.add(document.Highlight.important[1]);
     return this;
 }
 
 pub fn update(this: *@This()) !void {
-    if (!this.intro_shown and this.dialog == null) {
+    const intro_letter_closed = closed: {
+        const doc_handle = this.docs[0] orelse break :closed false;
+        const doc_node = this.ctx.get_node(doc_handle) orelse break :closed false;
+        const data = doc_node.data orelse break :closed false;
+        const doc = data.Document;
+        if (doc.mini) break :closed true;
+        break :closed false;
+    };
+    if (intro_letter_closed and !this.intro_shown and this.dialog == null) {
         this.dialog = dialog.get_dialog(&dialog.intro);
         const d = this.dialog.?.next() orelse unreachable;
         _ = try this.create_dialog(d.portrait, d.text);
         this.intro_shown = true;
         highlight = false;
     }
+    if (this.intro_shown and this.dialog == null and this.docs[2] == null and this.docs[3] == null) {
+        this.docs[2] = try this.create_doc(&document.pinks_ledger);
+        this.docs[3] = try this.create_doc(&document.eviction_notice);
+    }
     const important_found = document.Highlight.important_found();
-    if (!this.clue_spotted_shown and important_found > 1 and this.dialog == null) {
+    if (this.intro_shown and !this.clue_spotted_shown and important_found > 1 and this.dialog == null) {
         this.dialog = dialog.get_dialog(&dialog.clue_spotted);
         const d = this.dialog.?.next() orelse unreachable;
         _ = try this.create_dialog(d.portrait, d.text);

@@ -16,7 +16,7 @@ var fba: std.heap.FixedBufferAllocator = std.heap.FixedBufferAllocator.init(&hea
 var prng: std.rand.DefaultPrng = undefined;
 
 const Scene = enum { Title, Scene1 };
-var scene: Scene = .Scene1;
+var scene: Scene = .Title;
 
 const verbose = false;
 

@@ -25,7 +25,7 @@ pub const Highlight = struct {
     pub const important: []const TextRegion = &.{
         .{
             .document = &pinks_ledger,
-            .region = .{ pinks_ledger.position(11, 3), pinks_ledger.position(15, 3) },
+            .region = .{ pinks_ledger.position(11, 5), pinks_ledger.position(15, 5) },
         },
         .{
             .document = &eviction_notice,
